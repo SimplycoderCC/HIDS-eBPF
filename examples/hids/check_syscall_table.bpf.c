@@ -135,7 +135,7 @@ typedef struct path_name2 {
 
 typedef struct file_name {
     char filename[MAX_PATH_NAME_SIZE];
-	// char dir[MAX_PATH_NAME_SIZE];
+	char dir[MAX_PATH_NAME_SIZE];
 } filename_t;
 
 ///----------------- map -----------
