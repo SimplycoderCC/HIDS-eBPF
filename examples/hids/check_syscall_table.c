@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <regex.h>
+#include <ctype.h>
 #include <sys/resource.h>
 #include <bpf/libbpf.h>
 #include "check_syscall_table.h"
@@ -205,7 +206,7 @@ CLEAN_UP:
 
 // if(status==REG_NOMATCH) :::: No match
 // if(0 == status)         :::: Matched
-int my_match(char* pattern,const char* buf){
+static int my_match(char* pattern,const char* buf){
   	int status;
 	// int i;
   	int flag=REG_EXTENDED;
@@ -223,6 +224,19 @@ int my_match(char* pattern,const char* buf){
   	// // printf("\n");
   	regfree(&reg);
   	return status;
+}
+
+// char str[100] = ""
+static void get_proc_pid(const char* buf, char* pid){
+	int i = 0, j = 0;
+	while (buf[i] != '\0' && i<MAX_PATH_NAME_SIZE)
+	{
+		if (isdigit(buf[i])) {
+			pid[j]=buf[i];
+			j++;
+		}
+		i++;
+	}
 }
 
 static int handle_event(void *ctx, void *data, size_t data_sz)
@@ -271,12 +285,12 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// do_so_check();   //TODO
 		if(getenv("LD_PRELOAD")) {
 			printf("... LD_PRELOAD is visible in the local environment variables.. little warning\n");
-			printf("%-8s %-18s %-12s %-7s %-7s %-10s %s\n",
+			printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
 	       "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
 		}
     	if(access("/etc/ld.so.preload", F_OK) != -1) {
 			printf("... /etc/ld.so.preload DOES definitely exist.. little warning\n");
-			printf("%-8s %-18s %-12s %-7s %-7s %-10s %s\n",
+			printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
 	       "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
 		}
 #endif
@@ -351,25 +365,40 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			}
 
 			int status=my_match(regx_proc_mem,e->filename);
-			// if(status==REG_NOMATCH){
-			// 	printf("No match!\n");
-			// }else 
+			if(0 == status){
+				char pid[10] = "";
+				get_proc_pid(e->filename,pid);
+				// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
+				if (atoi(pid) != e->pid){
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%s/mem \n",
+					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,pid);
+					print_flag = false;
+				}
+			}
 			if((0 == status)&& memory_state==2){
+				// char pid[10] = "";
+				// get_proc_pid(e->filename,pid);
+				// printf(" get_proc_pid  proc:%s  pid:%s \n",e->filename,pid);
 				memory_state--;
-				// printf("匹配成功！\n");
 			}
 
 			status=my_match(regx_proc_maps,e->filename);
-			// if(status==REG_NOMATCH){
-			// 	printf("No match!\n");
-			// }else 
+			if(0 == status){
+				char pid[10] = "";
+				get_proc_pid(e->filename,pid);
+				// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
+				if (atoi(pid) != e->pid){
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%d/maps \n",
+					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,atoi(pid));
+					print_flag = false;
+				}
+			}
 			if(0 == status && memory_state==1){
 				memory_state--;
-				// printf("匹配成功！\n");
 			}
 
 			if (memory_state == 0){
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  program mem may be rewrite! \n",
+				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  program's memory may be rewrite! \n",
 					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns);
 					print_flag = false;
 				memory_state=3;
@@ -487,7 +516,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Process events */
-	printf("%-8s %-18s %-12s %-7s %-7s %-10s %s\n",
+	printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
 	       "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
 	while (1) {
 		err = ring_buffer__poll(rb, 100 /* timeout, ms */);
