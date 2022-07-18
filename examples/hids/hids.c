@@ -6,8 +6,8 @@
 #include <ctype.h>
 #include <sys/resource.h>
 #include <bpf/libbpf.h>
-#include "check_syscall_table.h"
-#include "check_syscall_table.skel.h"
+#include "hids.h"
+#include "hids.skel.h"
 
 // com_funaddr.c 中的库函数
 int do_so_check(void);
@@ -464,7 +464,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 int main(int argc, char **argv)
 {
 	struct ring_buffer *rb = NULL;
-	struct check_syscall_table_bpf *skel;
+	struct hids_bpf *skel;
 	int err;
 	unsigned long * systable_p;
 	// unsigned int syscalltable= 0;
@@ -475,14 +475,14 @@ int main(int argc, char **argv)
 	libbpf_set_print(libbpf_print_fn);
 
 	/* Load and verify BPF application */
-	skel = check_syscall_table_bpf__open();
+	skel = hids_bpf__open();
 	if (!skel) {
 		fprintf(stderr, "Failed to open and load BPF skeleton\n");
 		return 1;
 	}
 
 	/* Load & verify BPF programs */
-	err = check_syscall_table_bpf__load(skel);
+	err = hids_bpf__load(skel);
 	if (err) {
 		fprintf(stderr, "Failed to load and verify BPF skeleton\n");
 		goto cleanup;
@@ -504,7 +504,7 @@ int main(int argc, char **argv)
 	// bpf_map_update_elem(, &pid, &ts, BPF_ANY);
 	
 	/* Attach tracepoints */
-	err = check_syscall_table_bpf__attach(skel);
+	err = hids_bpf__attach(skel);
 	if (err) {
 		fprintf(stderr, "Failed to attach BPF skeleton\n");
 		goto cleanup;
@@ -537,7 +537,7 @@ int main(int argc, char **argv)
 cleanup:
 	/* Clean up */
 	ring_buffer__free(rb);
-	check_syscall_table_bpf__destroy(skel);
+	hids_bpf__destroy(skel);
 
 	return err < 0 ? -err : 0;
 }

@@ -19,7 +19,7 @@ CFLAGS := -g -Wall
 ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 
-APPS = check_syscall_table
+APPS = hids
 DLAPP = com_funaddr
 
 CARGO ?= $(shell which cargo)
@@ -115,7 +115,7 @@ $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 # Build user-space code
 $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 
-$(OUTPUT)/%.o: %.c $(wildcard %.h) $(DLAPP) | $(OUTPUT)
+$(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
 	$(call msg,CC,$@)
 	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
 
@@ -126,6 +126,7 @@ $(BZS_APPS): $(LIBBLAZESYM_OBJ)
 # Build application binary   链接时使用dlfun相关库-ldl
 $(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
+	gcc -c $(DLAPP).c -o $(OUTPUT)/$(DLAPP).o
 	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) $(OUTPUT)/$(DLAPP).o -lelf -ldl -lz -o $@
 
 # 在./output/下生成 .o
