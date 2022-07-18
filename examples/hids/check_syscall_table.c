@@ -9,6 +9,9 @@
 #include "check_syscall_table.h"
 #include "check_syscall_table.skel.h"
 
+// com_funaddr.c 中的库函数
+int do_so_check(void);
+
 #define DEBUG_EN
 #ifdef DEBUG_EN
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__);
@@ -282,17 +285,17 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	case MOUNT:
 	{
 #ifdef PRE_LOAD
-		// do_so_check();   //TODO
-		if(getenv("LD_PRELOAD")) {
-			printf("... LD_PRELOAD is visible in the local environment variables.. little warning\n");
-			printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
-	       "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
-		}
-    	if(access("/etc/ld.so.preload", F_OK) != -1) {
-			printf("... /etc/ld.so.preload DOES definitely exist.. little warning\n");
-			printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
-	       "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
-		}
+		do_so_check();   //TODO
+		// if(getenv("LD_PRELOAD")) {
+		// 	printf("... LD_PRELOAD is visible in the local environment variables.. little warning\n");
+		// 	printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
+	    //    "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
+		// }
+    	// if(access("/etc/ld.so.preload", F_OK) != -1) {
+		// 	printf("... /etc/ld.so.preload DOES definitely exist.. little warning\n");
+		// 	printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
+	    //    "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
+		// }
 #endif
 
 #ifdef ONLY_MOUNT_DOCKER
