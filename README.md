@@ -2,17 +2,18 @@
 
 ```shell
 # source code
-./examples/c/check_syscall_table.bpf.c  
-./examples/c/check_syscall_table.c  
-./examples/c/check_syscall_table.h  
+./examples/hids/hids.bpf.c  
+./examples/hids/hids.c  
+./examples/hids/hids.h 
+./examples/hids/com_funaddr.c 
 ```
 
 # usage
 
 ```shell
-cd ./examples/c/ 
-make check_syscall_table
-sudo ./check_syscall_table
+cd ./examples/hids/ 
+make hids
+sudo ./hids
 
 ```
 
