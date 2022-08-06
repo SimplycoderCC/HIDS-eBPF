@@ -44,6 +44,10 @@ static char *sensitive_mount_pre[] = {"cgroup","/dev/sd","/etc","/root",
 static int Count_sensitive_mount_all = 1;
 static char *sensitive_mount_all[] = {"/proc"};
 
+static int Count_sensitive_file_c = 2;
+static char *sensitive_file_c[] = {"shadow","crontab"};
+
+#ifdef LAZAGNE
 //---------------------------------------  LaZagne   -----------------------------------------------------------
 static int Count_monitorfiles = 22;
 static char *monitorfiles[] = {
@@ -97,6 +101,8 @@ static char *regx_proc_maps = "/proc/[1-9]+/maps" ;
 // shadow白名单
 static int Count_shadow_whitelist = 1;
 static char *shadow_whitelist[] = {"sudo"}; 
+
+#endif
 
 //------------------------------------------------------------ help fun ----------------------------------------------
 
@@ -331,128 +337,152 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	}
 	case OPEN_FILE:
 	{
-		// 单目录特征检测
-		for (int i = 0; i < Count_monitorfiles; i++)
+		if (host_pidns != e->pid_ns)
 		{
-			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
-			// if (strcmp(e->filename,monitorfiles[i]) == 0)
-			if (strstr(e->filename,monitorfiles[i]))
-			{	
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
-				ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
-				print_flag = false;
-			}
-		}
-		// 
-		for (int i = 0; i < Count_prefix; i++)
-		{
-			for (int j= 0; j < Count_suffix; j++)
+			for (int i = 0; i < Count_sensitive_file_c; i++)
 			{
 				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
-				if (strstr(e->filename,prefix[i]) && strstr(e->filename,suffix[j]))
+				if ( strstr(e->filename,sensitive_file_c[i]) )
+				{	
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  file escape attack : %s \n",
+					ts, "OPEN_FILE", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+					print_flag = false;
+				}
+			}
+		}
+		// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+		// 			ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+		// 			print_flag = false;	
+
+#ifdef LAZAGNE		
+		{
+			// 单目录特征检测
+			for (int i = 0; i < Count_monitorfiles; i++)
+			{
+				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+				// if (strcmp(e->filename,monitorfiles[i]) == 0)
+				if (strstr(e->filename,monitorfiles[i]))
 				{	
 					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
 					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 					print_flag = false;
 				}
 			}
-		}
-		// # memorpy库检测序列  memorpy state -> 3 -2 -1
-		{
-			if ( (strcmp(e->filename,"/proc/sys/kernel/yama/ptrace_scope")==0) && memory_state==3 ){
-				// 可不打印
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
-					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
-					print_flag = false;
-				memory_state--;
-			}
-
-			int status=my_match(regx_proc_mem,e->filename);
-			if(0 == status){
-				char pid[10] = "";
-				get_proc_pid(e->filename,pid);
-				// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
-				if (atoi(pid) != e->pid){
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%s/mem \n",
-					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,pid);
-					print_flag = false;
-				}
-			}
-			if((0 == status)&& memory_state==2){
-				// char pid[10] = "";
-				// get_proc_pid(e->filename,pid);
-				// printf(" get_proc_pid  proc:%s  pid:%s \n",e->filename,pid);
-				memory_state--;
-			}
-
-			status=my_match(regx_proc_maps,e->filename);
-			if(0 == status){
-				char pid[10] = "";
-				get_proc_pid(e->filename,pid);
-				// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
-				if (atoi(pid) != e->pid){
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%d/maps \n",
-					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,atoi(pid));
-					print_flag = false;
-				}
-			}
-			if(0 == status && memory_state==1){
-				memory_state--;
-			}
-
-			if (memory_state == 0){
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  program's memory may be rewrite! \n",
-					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns);
-					print_flag = false;
-				memory_state=3;
-			}
-		}
-		// # seq 基于读取序列 seq_1 -> seq_2  -- ssh-sysadmin
-		{
-			for (int i = 0; i < Count_ssh_key; i++)
+			// 
+			for (int i = 0; i < Count_prefix; i++)
 			{
-				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
-				if (strstr(e->filename,sysadmin_ssh_key[i]) && (ssh_state==2) )
-				{	
-					ssh_state = 1;
+				for (int j= 0; j < Count_suffix; j++)
+				{
+					// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+					if (strstr(e->filename,prefix[i]) && strstr(e->filename,suffix[j]))
+					{	
+						printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+						print_flag = false;
+					}
 				}
-			}  
-			if (strstr(e->filename,sysadmin_ssh_after) &&(ssh_state==1) ){
-				ssh_state = 2;
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  SSH-sysadmin sensitive file open:%s \n",
-					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
-					print_flag = false;
-			} 
-		}
-		// TODO 支持更多文件 --- 使用一个字符串数组存储白名单可访问的文件 
-		// shadow 程序白名单
-		// "/etc/shadow"
-		if( strcmp(e->filename,"/etc/shadow") ==0 ){
-			int shadow_perm = 0;
-			for (int i = 0; i < Count_shadow_whitelist; i++)
+			}
+			// # memorpy库检测序列  memorpy state -> 3 -2 -1
 			{
-				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
-				if (  strcmp(e->comm, shadow_whitelist[i]) ==0 )
-				{	
-					shadow_perm = 1;
+				if ( (strcmp(e->filename,"/proc/sys/kernel/yama/ptrace_scope")==0) && memory_state==3 ){
+					// 可不打印
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+						print_flag = false;
+					memory_state--;
 				}
-			}  
-			if (!shadow_perm){
-				// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  no permission open /etc/shadow \n",
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  no permission open %s \n",
-					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
-					print_flag = false;
+
+				int status=my_match(regx_proc_mem,e->filename);
+				if(0 == status){
+					char pid[10] = "";
+					get_proc_pid(e->filename,pid);
+					// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
+					if (atoi(pid) != e->pid){
+						printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%s/mem \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,pid);
+						print_flag = false;
+					}
+				}
+				if((0 == status)&& memory_state==2){
+					// char pid[10] = "";
+					// get_proc_pid(e->filename,pid);
+					// printf(" get_proc_pid  proc:%s  pid:%s \n",e->filename,pid);
+					memory_state--;
+				}
+
+				status=my_match(regx_proc_maps,e->filename);
+				if(0 == status){
+					char pid[10] = "";
+					get_proc_pid(e->filename,pid);
+					// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
+					if (atoi(pid) != e->pid){
+						printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%d/maps \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,atoi(pid));
+						print_flag = false;
+					}
+				}
+				if(0 == status && memory_state==1){
+					memory_state--;
+				}
+
+				if (memory_state == 0){
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  program's memory may be rewrite! \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns);
+						print_flag = false;
+					memory_state=3;
+				}
+			}
+			// # seq 基于读取序列 seq_1 -> seq_2  -- ssh-sysadmin
+			{
+				for (int i = 0; i < Count_ssh_key; i++)
+				{
+					// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+					if (strstr(e->filename,sysadmin_ssh_key[i]) && (ssh_state==2) )
+					{	
+						ssh_state = 1;
+					}
+				}  
+				if (strstr(e->filename,sysadmin_ssh_after) &&(ssh_state==1) ){
+					ssh_state = 2;
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  SSH-sysadmin sensitive file open:%s \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+						print_flag = false;
+				} 
+			}
+			// TODO 支持更多文件 --- 使用一个字符串数组存储白名单可访问的文件 
+			// shadow 程序白名单
+			// "/etc/shadow"
+			if( strcmp(e->filename,"/etc/shadow") ==0 ){
+				int shadow_perm = 0;
+				for (int i = 0; i < Count_shadow_whitelist; i++)
+				{
+					// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+					if (  strcmp(e->comm, shadow_whitelist[i]) ==0 )
+					{	
+						shadow_perm = 1;
+					}
+				}  
+				if (!shadow_perm){
+					// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  no permission open /etc/shadow \n",
+					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  no permission open %s \n",
+						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+						print_flag = false;
+				}
 			}
 		}
+#endif
 
 		break;
 	}
 	case EXEC :
 	{
-		unsigned long cap = e->cap_effective[1] & ((unsigned long)e->cap_effective[0]<<32);
+		// 容器权限检测
+		// printf("cap_effective[0]:%x  e->cap_effective[1]:%x \n",e->cap_effective[0],e->cap_effective[1]);
+		// printf("cap_effective[0]:%x  e->cap_effective[1]:%lx \n",e->cap_effective[0],((unsigned long)e->cap_effective[1])<<32);
+		unsigned long cap = ((unsigned long)e->cap_effective[0] & 0x00000000ffffffff) | ((((unsigned long)e->cap_effective[1])<<32));
 		// printf("%lx \n",cap);
 		if (cap == PRIVILEGED_CAP && strcmp(e->comm, "runc:[2:INIT]")==0){
-			printf("cap_effective:%lx \n",cap);
+			// printf("  ---  cap_effective:%lx  ---  \n",cap);
 			printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
 					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 			print_flag = false;
@@ -460,21 +490,23 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		}
 
 		if (cap != DEFAULT_CAP && strcmp(e->comm, "runc:[2:INIT]")==0){
-			printf("cap_effective:%lx \n",cap);
+			// printf("cap_effective[0]:%x  e->cap_effective[1]:%x \n",e->cap_effective[0],e->cap_effective[1]);
+			// printf("cap_effective[0]:%lx  e->cap_effective[1]:%lx \n",(unsigned long)e->cap_effective[0]& 0x00000000ffffffff,((unsigned long)e->cap_effective[1])<<32);
+			// printf("cap_effective:%lx ---",cap);
 			printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
 					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 			print_flag = false;
 			break ;
 		}
 		
-		if (host_pidns == e->pid_ns)
-		{
-			break;
-		}
-		printf("cap_effective:%lx \n",cap);
-		printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x \n",
-					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
-		print_flag = false;
+		// if (host_pidns == e->pid_ns)
+		// {
+		// 	break;
+		// }
+		// printf("cap_effective:%lx ---",cap);
+		// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x \n",
+		// 			ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+		// print_flag = false;
 
 		// TODO 
 		// 支持bash监控
