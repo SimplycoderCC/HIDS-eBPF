@@ -123,7 +123,7 @@ $(patsubst %,$(OUTPUT)/%.o,$(BZS_APPS)): $(LIBBLAZESYM_HEADER)
 
 $(BZS_APPS): $(LIBBLAZESYM_OBJ)
 
-# Build application binary   链接时使用dlfun相关库-ldl
+# Build application binary   链接时指定dlfun相关库-ldl
 $(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
 	gcc -c $(DLAPP).c -o $(OUTPUT)/$(DLAPP).o

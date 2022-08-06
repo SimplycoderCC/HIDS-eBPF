@@ -23,7 +23,7 @@ int do_so_check(void);
 #define ONLY_MOUNT_DOCKER
 
 // 是否进行 preload 检测, 在mount的时候触发。  todo: 更好地触发形式？  
-#define PRE_LOAD
+// #define PRE_LOAD
 
 // 打印所有事件
 // #define NORMAL
@@ -331,7 +331,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	}
 	case OPEN_FILE:
 	{
-		// 但目录特征检测
+		// 单目录特征检测
 		for (int i = 0; i < Count_monitorfiles; i++)
 		{
 			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
@@ -446,6 +446,47 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		}
 
 		break;
+	}
+	case EXEC :
+	{
+		unsigned long cap = e->cap_effective[1] & ((unsigned long)e->cap_effective[0]<<32);
+		// printf("%lx \n",cap);
+		if (cap == PRIVILEGED_CAP && strcmp(e->comm, "runc:[2:INIT]")==0){
+			printf("cap_effective:%lx \n",cap);
+			printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
+					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+			print_flag = false;
+			break ;
+		}
+
+		if (cap != DEFAULT_CAP && strcmp(e->comm, "runc:[2:INIT]")==0){
+			printf("cap_effective:%lx \n",cap);
+			printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
+					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+			print_flag = false;
+			break ;
+		}
+		
+		if (host_pidns == e->pid_ns)
+		{
+			break;
+		}
+		printf("cap_effective:%lx \n",cap);
+		printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x \n",
+					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+		print_flag = false;
+
+		// TODO 
+		// 支持bash监控
+		// if ( strcmp(e->comm, "bash")==0
+		// 			 || strcmp(e->comm, "sh")==0
+		// 			 || strcmp(e->comm, "csh")==0
+		// 			 || strcmp(e->comm, "tcsh")==0
+		// 			 || strcmp(e->comm, "ash")==0
+		// 			 || strcmp(e->comm, "zsh")==0 ) {
+
+		// }
+
 	}
 	default:
 		break;

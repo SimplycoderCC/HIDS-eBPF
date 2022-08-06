@@ -124,6 +124,24 @@ struct trace_event_openat {
 	long mode;        
 };
 
+struct trace_event_execve {
+	struct trace_entry ent;
+	int __syscall_nr;
+	char * filename;
+	char * argv;  
+	char * envp;        
+};
+
+struct trace_event_execveat {
+	struct trace_entry ent;
+	int __syscall_nr;
+	int fd;
+	char * filename;
+	char * argv;  
+	char * envp;     
+	int flags;   
+};
+
 typedef struct ksym_name {
     char str[MAX_KSYM_NAME_SIZE];
 } ksym_name_t;
@@ -135,7 +153,6 @@ typedef struct path_name2 {
 
 typedef struct file_name {
     char filename[MAX_PATH_NAME_SIZE];
-	char dir[MAX_PATH_NAME_SIZE];
 } filename_t;
 
 ///----------------- map -----------
@@ -167,6 +184,13 @@ struct {
 	__type(key, u32);
 	__type(value, filename_t); 
 } open_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 4096);
+	__type(key, u32);
+	__type(value, filename_t); 
+} exec_map SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
@@ -367,7 +391,7 @@ int open_enter(struct trace_event_open* open_ctx)
 	pid = bpf_get_current_pid_tgid() >> 32;
 
 	bpf_probe_read_str(open_pkg.filename, sizeof(open_pkg.filename), (void *)(open_ctx->filename)); 
-	DEBUG("[open_enter]  filename %s   \n",open_pkg.filename);
+	// DEBUG("[open_enter]  filename %s   \n",open_pkg.filename);
 
 	bpf_map_update_elem(&open_map, &pid ,&open_pkg, BPF_ANY);
 	// bpf_map_update_elem(&mount_dir_map, &pid ,&dir, BPF_ANY);
@@ -397,7 +421,7 @@ int openat_enter(struct trace_event_openat* openat_ctx)
 	pid = bpf_get_current_pid_tgid() >> 32;
 
 	bpf_probe_read_str(open_pkg.filename, sizeof(open_pkg.filename), (void *)(openat_ctx->filename)); 
-	DEBUG("[openat_enter]  filename %s   \n",open_pkg.filename);
+	// DEBUG("[openat_enter]  filename %s   \n",open_pkg.filename);
 
 	bpf_map_update_elem(&open_map, &pid ,&open_pkg, BPF_ANY);
 	// bpf_map_update_elem(&mount_dir_map, &pid ,&dir, BPF_ANY);
@@ -420,7 +444,7 @@ int open_exit(struct exit_args *ctx)
 		return 0;
 	}
 	
-	DEBUG("[open_exit] ret :%ld ....................\n",ret);
+	// DEBUG("[open_exit] ret :%ld ....................\n",ret);
 	pid = bpf_get_current_pid_tgid() >> 32;
 	task = (struct task_struct *)bpf_get_current_task();
 
@@ -430,7 +454,7 @@ int open_exit(struct exit_args *ctx)
 		DEBUG("BPF map key:open_map  nofind !\n");
 		return 0;
 	}else{
-		DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
+		// DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
 	}
 
 	/* 保存事件结构体  reserve sample from BPF ringbuf */
@@ -447,7 +471,10 @@ int open_exit(struct exit_args *ctx)
 	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
     // file name
 	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(open_pkg->filename)); 
-	DEBUG("[open_exit]  e->filename %s \n",e->filename);
+	// DEBUG("[open_exit]  e->filename %s \n",e->filename);
+	// uts node name
+	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
+	// DEBUG("[open_exit]  e->utsnodename %s \n",e->utsnodename);
 	// 无mount file path
 
 	/* successfully submit it to user-space for post-processing */
@@ -470,7 +497,7 @@ int openat_exit(struct exit_args *ctx)
 		return 0;
 	}
 	
-	DEBUG("[open_exit] ret :%ld ....................\n",ret);
+	// DEBUG("[open_exit] ret :%ld ....................\n",ret);
 	pid = bpf_get_current_pid_tgid() >> 32;
 	task = (struct task_struct *)bpf_get_current_task();
 
@@ -480,7 +507,7 @@ int openat_exit(struct exit_args *ctx)
 		DEBUG("BPF map key:open_map  nofind !\n");
 		return 0;
 	}else{
-		DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
+		// DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
 	}
 
 	/* 保存事件结构体  reserve sample from BPF ringbuf */
@@ -497,7 +524,10 @@ int openat_exit(struct exit_args *ctx)
 	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
     // file name
 	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(open_pkg->filename)); 
-	DEBUG("[open_exit]  e->filename %s \n",e->filename);
+	// DEBUG("[open_exit]  e->filename %s \n",e->filename);
+	// uts node name
+	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
+	// DEBUG("[open_exit]  e->utsnodename %s \n",e->utsnodename);
 	// 无mount file path
 
 	/* successfully submit it to user-space for post-processing */
@@ -507,3 +537,180 @@ int openat_exit(struct exit_args *ctx)
 
 // tracepoint:syscalls:sys_exit_openat2
 // tracepoint:syscalls:sys_enter_openat2
+
+// ----------------------------------------- execve ---------------------------------------------------------------
+// name: sys_enter_execve
+// ID: 716
+// format:
+//         field:unsigned short common_type;       offset:0;       size:2; signed:0;
+//         field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+//         field:unsigned char common_preempt_count;       offset:3;       size:1; signed:0;
+//         field:int common_pid;   offset:4;       size:4; signed:1;
+
+//         field:int __syscall_nr; offset:8;       size:4; signed:1;
+//         field:const char * filename;    offset:16;      size:8; signed:0;
+//         field:const char *const * argv; offset:24;      size:8; signed:0;
+//         field:const char *const * envp; offset:32;      size:8; signed:0;
+// print fmt: "filename: 0x%08lx, argv: 0x%08lx, envp: 0x%08lx", ((unsigned long)(REC->filename)), ((unsigned long)(REC->argv)), ((unsigned long)(REC->envp))
+
+SEC("tp/syscalls/sys_enter_execve")
+int execve_enter(struct trace_event_execve* execve_ctx)
+{
+	filename_t execve_pkg = {0};
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+
+	bpf_probe_read_str(execve_pkg.filename, sizeof(execve_pkg.filename), (void *)(execve_ctx->filename)); 
+	DEBUG("[execve_enter]  filename %s   \n",execve_pkg.filename);
+
+	bpf_map_update_elem(&exec_map, &pid ,&execve_pkg, BPF_ANY);
+
+	return 0;
+}
+
+SEC("tp/syscalls/sys_exit_execve")
+int execve_exit(struct exit_args *ctx)
+{
+	struct event *e;
+	struct task_struct *task;
+	filename_t *exec_pkg;
+	pid_t pid;
+	
+	long ret = ctx->ret;
+	DEBUG("[exec_exit] ret :%ld ....................\n",ret);
+	if (ret == -1)
+	{
+		return 0;
+	}
+	
+	// DEBUG("[exec_exit] ret :%ld ....................\n",ret);
+	pid = bpf_get_current_pid_tgid() >> 32;
+	task = (struct task_struct *)bpf_get_current_task();
+
+	exec_pkg = (filename_t *)bpf_map_lookup_elem(&exec_map, &pid);
+	if (!exec_pkg)
+	{
+		DEBUG("BPF map key:exec_map  nofind !\n");
+		return 0;
+	}else{
+		DEBUG("[exec_exit]  filename: %s \n",exec_pkg->filename);
+	}
+
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = EXEC;
+	e->pid = pid;
+    // 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    // comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	//pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+    // file name
+	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(exec_pkg->filename)); 
+	DEBUG("[exec_exit]  e->filename %s \n",e->filename);
+	// uts node name
+	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
+	DEBUG("[exec_exit]  e->utsnodename %s \n",e->utsnodename);
+	// cap_effective
+	e->cap_effective[0] = BPF_CORE_READ(task,real_cred,cap_effective.cap[0]);
+	e->cap_effective[1] = BPF_CORE_READ(task,real_cred,cap_effective.cap[1]);
+	DEBUG("[exec_exit]  e->cap_effective[0]:%d e->cap_effective[1]:%d \n",e->cap_effective[0], e->cap_effective[1]);
+	// 无mount file path
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+// --------------------------------------------------------------------------------------------------
+// name: sys_enter_execveat
+// ID: 714
+// format:
+//         field:unsigned short common_type;       offset:0;       size:2; signed:0;
+//         field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+//         field:unsigned char common_preempt_count;       offset:3;       size:1; signed:0;
+//         field:int common_pid;   offset:4;       size:4; signed:1;
+
+//         field:int __syscall_nr; offset:8;       size:4; signed:1;
+//         field:int fd;   offset:16;      size:8; signed:0;
+//         field:const char * filename;    offset:24;      size:8; signed:0;
+//         field:const char *const * argv; offset:32;      size:8; signed:0;
+//         field:const char *const * envp; offset:40;      size:8; signed:0;
+//         field:int flags;        offset:48;      size:8; signed:0;
+// print fmt: "fd: 0x%08lx, filename: 0x%08lx, argv: 0x%08lx, envp: 0x%08lx, flags: 0x%08lx", ((unsigned long)(REC->fd)), ((unsigned long)(REC->filename)), ((unsigned long)(REC->argv)), ((unsigned long)(REC->envp)), ((unsigned long)(REC->flags))
+
+SEC("tp/syscalls/sys_enter_execveat")
+int execveat_enter(struct trace_event_execveat* execveat_ctx)
+{
+	filename_t execve_pkg = {0};
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+
+	bpf_probe_read_str(execve_pkg.filename, sizeof(execve_pkg.filename), (void *)(execveat_ctx->filename)); 
+	DEBUG("[execveat_enter]  filename %s   \n",execve_pkg.filename);
+
+	bpf_map_update_elem(&exec_map, &pid ,&execve_pkg, BPF_ANY);
+	// bpf_map_update_elem(&mount_dir_map, &pid ,&dir, BPF_ANY);
+	// bpf_map_update_elem(&mount_dir_map,);
+	return 0;
+}
+
+SEC("tp/syscalls/sys_exit_execveat")
+int execveat_exit(struct exit_args *ctx)
+{
+	struct event *e;
+	struct task_struct *task;
+	filename_t *exec_pkg;
+	pid_t pid;
+	
+	long ret = ctx->ret;
+	DEBUG("[execat_exit] ret :%ld ....................\n",ret);
+	if (ret == -1)
+	{
+		return 0;
+	}
+	
+	// DEBUG("[execa_exit] ret :%ld ....................\n",ret);
+	pid = bpf_get_current_pid_tgid() >> 32;
+	task = (struct task_struct *)bpf_get_current_task();
+
+	exec_pkg = (filename_t *)bpf_map_lookup_elem(&exec_map, &pid);
+	if (!exec_pkg)
+	{
+		DEBUG("BPF map key:exec_map  nofind !\n");
+		return 0;
+	}else{
+		DEBUG("[execa_exit]  filename: %s \n",exec_pkg->filename);
+	}
+
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = EXEC;
+	e->pid = pid;
+    // 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    // comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	//pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+    // file name
+	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(exec_pkg->filename)); 
+	DEBUG("[execa_exit]  e->filename %s \n",e->filename);
+	// uts node name
+	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
+	DEBUG("[execa_exit]  e->utsnodename %s \n",e->utsnodename);
+	// cap_effective
+	e->cap_effective[0] = BPF_CORE_READ(task,real_cred,cap_effective.cap[0]);
+	e->cap_effective[1] = BPF_CORE_READ(task,real_cred,cap_effective.cap[1]);
+	DEBUG("[execa_exit]  e->cap_effective[0]:%d e->cap_effective[1]:%d \n",e->cap_effective[0], e->cap_effective[1]);
+	// 无mount file path
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
