@@ -12,7 +12,7 @@
 // com_funaddr.c 中的库函数
 int do_so_check(void);
 
-#define DEBUG_EN
+// #define DEBUG_EN
 #ifdef DEBUG_EN
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__);
 #else
@@ -23,10 +23,13 @@ int do_so_check(void);
 #define ONLY_MOUNT_DOCKER
 
 // 是否进行 preload 检测, 在mount的时候触发。  todo: 更好地触发形式？  
-// #define PRE_LOAD
+#define PRE_LOAD
 
 // 打印所有事件
 // #define NORMAL
+
+// 是否检测LAZAGNE 敏感目录
+// #define LAZAGNE
 
 #define MAX_LEN_ENTRY 256
 #define MAX_PROC_PIDNS 64

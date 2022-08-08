@@ -133,6 +133,10 @@ $(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 $(DLAPP):
 	gcc -c $(DLAPP).c -o $(OUTPUT)/$(DLAPP).o
 
+clear:
+	rm -f ./hids ./.output/com_funaddr.o ./.output/hids.o
+	
+
 # delete failed targets
 .DELETE_ON_ERROR:
 
