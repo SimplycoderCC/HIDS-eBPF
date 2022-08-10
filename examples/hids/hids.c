@@ -281,7 +281,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				if (syscalladdr>_etext || syscalladdr<_stext)
 				{
 					DEBUG("syscalladdr out of range \n");
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld syscall[%d]: be changed \n",
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld syscall[%d]: be changed. May have been attacked by kernel rootkit !\n",
 					ts, "SYSCALL_TABLE_HOOK", e->comm, e->pid, e->ppid, e->pid_ns, idx);
 					print_flag = false;
 					// e->event_type = SYSCALL_TABLE_HOOK;
@@ -320,8 +320,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 			if (strncmp(e->mount_dev,sensitive_mount_pre[i], strlen(sensitive_mount_pre[i])) == 0)
 			{	
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  docker mount dev:%s dir:%s\n",
-				ts, "MOUNT", e->comm, e->pid, e->ppid, e->pid_ns,e->mount_dev,e->mount_dir);
+				printf("%-8s %-20s %-20s %-7d %-7d %-10ld  Container-id:%s mount dev:%s dir:%s\n",
+				ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename,e->mount_dev,e->mount_dir);
 				print_flag = false;
 			}
 		}
@@ -331,8 +331,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 			if (strcmp(e->mount_dev,sensitive_mount_all[i]) == 0)
 			{	
-				printf("%-8s %-16s %-16s %-7d %-7d %-10ld  docker mount dev:%s dir:%s\n",
-				ts, "MOUNT", e->comm, e->pid, e->ppid, e->pid_ns,e->mount_dev,e->mount_dir);
+				printf("%-8s %-20s %-20s %-7d %-7d %-10ld   Container-id:%s mount dev:%s dir:%s\n",
+				ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename, e->mount_dev,e->mount_dir);
 				print_flag = false;
 			}
 		}
@@ -347,13 +347,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 				if ( strstr(e->filename,sensitive_file_c[i]) )
 				{	
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  file escape attack : %s \n",
-					ts, "OPEN_FILE", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  Container file escape attack : %s \n",
+					ts, "[File open]", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 					print_flag = false;
 				}
 			}
 		}
-		// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+		// printf("%-8s %-20s %-20s %-7d %-7d %-10ld  sensitive file open:%s \n",
 		// 			ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 		// 			print_flag = false;	
 
@@ -366,7 +366,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				// if (strcmp(e->filename,monitorfiles[i]) == 0)
 				if (strstr(e->filename,monitorfiles[i]))
 				{	
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  sensitive file open:%s \n",
 					ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 					print_flag = false;
 				}
@@ -379,7 +379,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 					// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 					if (strstr(e->filename,prefix[i]) && strstr(e->filename,suffix[j]))
 					{	
-						printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+						printf("%-8s %-20s %-20s %-7d %-7d %-10ld  sensitive file open:%s \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 						print_flag = false;
 					}
@@ -389,7 +389,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			{
 				if ( (strcmp(e->filename,"/proc/sys/kernel/yama/ptrace_scope")==0) && memory_state==3 ){
 					// 可不打印
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  sensitive file open:%s \n",
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  sensitive file open:%s \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 						print_flag = false;
 					memory_state--;
@@ -401,7 +401,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 					get_proc_pid(e->filename,pid);
 					// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
 					if (atoi(pid) != e->pid){
-						printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%s/mem \n",
+						printf("%-8s %-20s %-20s %-7d %-7d %-10ld  detect program open other program's /proc/%s/mem \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,pid);
 						print_flag = false;
 					}
@@ -419,7 +419,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 					get_proc_pid(e->filename,pid);
 					// printf(" get_proc_pid  proc:%s  pid:%s atoi(pid):%d \n",e->filename,pid,atoi(pid));
 					if (atoi(pid) != e->pid){
-						printf("%-8s %-16s %-16s %-7d %-7d %-10ld  detect program open other program's /proc/%d/maps \n",
+						printf("%-8s %-20s %-20s %-7d %-7d %-10ld  detect program open other program's /proc/%d/maps \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,atoi(pid));
 						print_flag = false;
 					}
@@ -429,7 +429,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				}
 
 				if (memory_state == 0){
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  program's memory may be rewrite! \n",
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  program's memory may be rewrite! \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns);
 						print_flag = false;
 					memory_state=3;
@@ -447,7 +447,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				}  
 				if (strstr(e->filename,sysadmin_ssh_after) &&(ssh_state==1) ){
 					ssh_state = 2;
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  SSH-sysadmin sensitive file open:%s \n",
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  SSH-sysadmin sensitive file open:%s \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 						print_flag = false;
 				} 
@@ -466,8 +466,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 					}
 				}  
 				if (!shadow_perm){
-					// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  no permission open /etc/shadow \n",
-					printf("%-8s %-16s %-16s %-7d %-7d %-10ld  no permission open %s \n",
+					// printf("%-8s %-20s %-20s %-7d %-7d %-10ld  no permission open /etc/shadow \n",
+					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  no permission open %s \n",
 						ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 						print_flag = false;
 				}
@@ -486,8 +486,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// printf("%lx \n",cap);
 		if (cap == PRIVILEGED_CAP && strcmp(e->comm, "runc:[2:INIT]")==0){
 			// printf("  ---  cap_effective:%lx  ---  \n",cap);
-			printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
-					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+			printf("%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
+					ts, "[Container start]", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 			print_flag = false;
 			break ;
 		}
@@ -496,8 +496,8 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// printf("cap_effective[0]:%x  e->cap_effective[1]:%x \n",e->cap_effective[0],e->cap_effective[1]);
 			// printf("cap_effective[0]:%lx  e->cap_effective[1]:%lx \n",(unsigned long)e->cap_effective[0]& 0x00000000ffffffff,((unsigned long)e->cap_effective[1])<<32);
 			// printf("cap_effective:%lx ---",cap);
-			printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
-					ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+			printf("%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
+					ts, "[Container start]", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 			print_flag = false;
 			break ;
 		}
@@ -507,7 +507,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// 	break;
 		// }
 		// printf("cap_effective:%lx ---",cap);
-		// printf("%-8s %-16s %-16s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x \n",
+		// printf("%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x \n",
 		// 			ts, "EXEC", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 		// print_flag = false;
 
@@ -529,7 +529,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	if (print_flag){
 #ifdef NORMAL
-		printf("%-8s %-16s %-16s %-7d %-7d %-10ld %s\n",
+		printf("%-8s %-20s %-20s %-7d %-7d %-10ld %s\n",
 	       	ts, "NORMAL", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 #endif
 	}
