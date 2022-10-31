@@ -118,6 +118,7 @@ $(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 $(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
 	$(call msg,CC,$@)
 	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+# $(Q) g++ $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
 
 $(patsubst %,$(OUTPUT)/%.o,$(BZS_APPS)): $(LIBBLAZESYM_HEADER)
 
@@ -128,6 +129,7 @@ $(APPS): %: $(OUTPUT)/%.o $(LIBBPF_OBJ) | $(OUTPUT)
 	$(call msg,BINARY,$@)
 	gcc -c $(DLAPP).c -o $(OUTPUT)/$(DLAPP).o
 	$(Q)$(CC) $(CFLAGS) $^ $(ALL_LDFLAGS) $(OUTPUT)/$(DLAPP).o -lelf -ldl -lz -o $@
+# g++ $(CFLAGS) $^ $(ALL_LDFLAGS) $(OUTPUT)/$(DLAPP).o -lelf -ldl -lz -o $@
 
 # 在./output/下生成 .o
 $(DLAPP):

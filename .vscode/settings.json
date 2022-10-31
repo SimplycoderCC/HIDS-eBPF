@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "sstream": "c"
+        "sstream": "c",
+        "atomic": "c",
+        "*.tcc": "c",
+        "fstream": "c"
     }
 }

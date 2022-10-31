@@ -12,7 +12,7 @@
 // com_funaddr.c 中的库函数
 int do_so_check(void);
 
-// #define DEBUG_EN
+#define DEBUG_EN
 #ifdef DEBUG_EN
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__);
 #else
@@ -23,7 +23,7 @@ int do_so_check(void);
 #define ONLY_MOUNT_DOCKER
 
 // 是否进行 preload 检测, 在mount的时候触发。  todo: 更好地触发形式？  
-#define PRE_LOAD
+// #define PRE_LOAD
 
 // 打印所有事件
 // #define NORMAL
@@ -42,13 +42,13 @@ unsigned long host_pidns;
 //----------------------------------------- Mount event -------------------------------------------------
 static int Count_sensitive_mount_pre = 6;
 static char *sensitive_mount_pre[] = {"cgroup","/dev/sd","/etc","/root",
-            "/var/run","/proc/sys/kernel"};
+            "/var/run","/proc/sys/kernel","/etc/ssh"};
 
 static int Count_sensitive_mount_all = 1;
 static char *sensitive_mount_all[] = {"/proc"};
 
 static int Count_sensitive_file_c = 2;
-static char *sensitive_file_c[] = {"shadow","crontab"};
+static char *sensitive_file_c[] = {"shadow","crontab","sshd_config"};
 
 #ifdef LAZAGNE
 //---------------------------------------  LaZagne   -----------------------------------------------------------
@@ -111,8 +111,8 @@ static char *shadow_whitelist[] = {"sudo"};
 
 static int libbpf_print_fn(enum libbpf_print_level level, const char *format, va_list args)
 {
-	// if (level == LIBBPF_DEBUG)
-	// 	return 0;
+	if (level == LIBBPF_DEBUG)
+		return 0;
 	return vfprintf(stderr, format, args);
 }
 
@@ -251,6 +251,54 @@ static void get_proc_pid(const char* buf, char* pid){
 	}
 }
 
+/// 根据PID对应的进程是否运行在容器中
+static int judge_run_in_docker(int pid, unsigned long pid_ns){
+	// 进程PID-ns与主机侧相同，肯定运行在容器中
+	if(pid_ns == host_pidns){
+		return 0;
+	}
+	// 打开并读取 PID对应的Cgroup   /proc/$(PID)/Cgroup
+	char cgroup_path[MAX_LEN_ENTRY]  = {0}; 
+	char *path = strcat(cgroup_path,"/proc/");
+	char pid_s[33] = {0};
+	// char* pid_str=itoa(pid, pid_s, 10); // linux中无itoa
+	int ret = sprintf(pid_s, "%d", pid);
+	if(ret < 0){
+		DEBUG("sprintf pid:%d to string fail\n",pid);
+		fprintf(stderr, "sprintf pid:%d to string fail\n",pid);
+		return 0;
+	}
+	path = strcat(path, pid_s);
+	path = strcat(path, "/cgroup");
+	// DEBUG("Cgroup path : %s \n",path);
+	FILE *cgroup_file = fopen(path, "r");
+	if( cgroup_file == NULL ){
+		DEBUG("Open %s fail\n",path);
+		fprintf(stderr, "Open %s fail\n",path);
+		return 0;
+	}
+	char *read                            = NULL;
+	char *start_p                         = NULL;
+	char str_line[MAX_LEN_ENTRY]  = {0}; 
+	read = fgets(str_line, MAX_LEN_ENTRY, cgroup_file);//从输入文件读取一行字符串
+	while(read){
+		start_p = strstr(str_line, "::/docker/");
+		if(start_p != NULL)
+		{
+			DEBUG("Found ::/docker/\n");
+			DEBUG("Line is:%s\n", str_line);
+			fprintf(stderr, "start_p %s\n",start_p);
+			char *containerid_s = start_p + sizeof("::/docker/") - 1;
+			fprintf(stderr, "CONTARNER-IS %s\n",containerid_s);
+			return 1;
+			
+		}
+		DEBUG("Line is:%s\n", str_line);
+		read = fgets(str_line, MAX_LEN_ENTRY, cgroup_file);//从输入文件读取一行字符串
+	}
+	return 0;
+}
+
 static int handle_event(void *ctx, void *data, size_t data_sz)
 {
 	const struct event *e = data;
@@ -281,7 +329,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				if (syscalladdr>_etext || syscalladdr<_stext)
 				{
 					DEBUG("syscalladdr out of range \n");
-					printf("%-8s %-20s %-20s %-7d %-7d %-10ld syscall[%d]: be changed. May have been attacked by kernel rootkit !\n",
+					fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld syscall[%d]: be changed. May have been attacked by kernel rootkit !\n",
 					ts, "SYSCALL_TABLE_HOOK", e->comm, e->pid, e->ppid, e->pid_ns, idx);
 					print_flag = false;
 					// e->event_type = SYSCALL_TABLE_HOOK;
@@ -293,6 +341,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		break;
 	case MOUNT:
 	{
+		DEBUG("mount start \n");
 #ifdef PRE_LOAD
 		do_so_check();   //TODO
 		// if(getenv("LD_PRELOAD")) {
@@ -308,9 +357,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 #endif
 
 #ifdef ONLY_MOUNT_DOCKER
+		// 简单namespace判断
 		if (host_pidns == e->pid_ns)
+		// DEBUG("host_pidns: %ld, e->pid_ns: %ld \n",host_pidns,e->pid_ns);
+		// 使用 judge函数判断
+		// if (judge_run_in_docker(e->pid, e->pid_ns) == 0)
 		{
-			// DEBUG("host MOUNT \n");
+			DEBUG("host MOUNT \n");
 			break;
 		}
 #endif
@@ -320,7 +373,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 			if (strncmp(e->mount_dev,sensitive_mount_pre[i], strlen(sensitive_mount_pre[i])) == 0)
 			{	
-				printf("%-8s %-20s %-20s %-7d %-7d %-10ld  Container-id:%s mount dev:%s dir:%s\n",
+				fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  Container-id:%s mount dev:%s dir:%s\n",
 				ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename,e->mount_dev,e->mount_dir);
 				print_flag = false;
 			}
@@ -331,7 +384,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 			if (strcmp(e->mount_dev,sensitive_mount_all[i]) == 0)
 			{	
-				printf("%-8s %-20s %-20s %-7d %-7d %-10ld   Container-id:%s mount dev:%s dir:%s\n",
+				fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld   Container-id:%s mount dev:%s dir:%s\n",
 				ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename, e->mount_dev,e->mount_dir);
 				print_flag = false;
 			}
@@ -347,7 +400,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 				if ( strstr(e->filename,sensitive_file_c[i]) )
 				{	
-					printf("%-8s %-20s %-20s %-7d %-7d %-10ld  Container file escape attack : %s \n",
+					fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  Container file escape attack : %s \n",
 					ts, "[File open]", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 					print_flag = false;
 				}
@@ -486,7 +539,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 		// printf("%lx \n",cap);
 		if (cap == PRIVILEGED_CAP && strcmp(e->comm, "runc:[2:INIT]")==0){
 			// printf("  ---  cap_effective:%lx  ---  \n",cap);
-			printf("%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
 					ts, "[Container start]", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 			print_flag = false;
 			break ;
@@ -496,12 +549,14 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// printf("cap_effective[0]:%x  e->cap_effective[1]:%x \n",e->cap_effective[0],e->cap_effective[1]);
 			// printf("cap_effective[0]:%lx  e->cap_effective[1]:%lx \n",(unsigned long)e->cap_effective[0]& 0x00000000ffffffff,((unsigned long)e->cap_effective[1])<<32);
 			// printf("cap_effective:%lx ---",cap);
-			printf("%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
 					ts, "[Container start]", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
 			print_flag = false;
 			break ;
 		}
 		
+		// TODO 进行容器判读并存入Map中
+
 		// if (host_pidns == e->pid_ns)
 		// {
 		// 	break;
@@ -595,7 +650,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Process events */
-	printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
+	fprintf(stderr, /*printf(*/"%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
 	       "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
 	while (1) {
 		err = ring_buffer__poll(rb, 100 /* timeout, ms */);

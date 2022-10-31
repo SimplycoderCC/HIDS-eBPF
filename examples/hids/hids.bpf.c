@@ -308,7 +308,6 @@ int mount_enter(struct trace_event_mount *mount_ctx)
 
 //         field:int __syscall_nr; offset:8;       size:4; signed:1;
 //         field:long ret; offset:16;      size:8; signed:1;
-// // todo 返回值为0才添加到event
 SEC("tp/syscalls/sys_exit_mount")
 int mount_exit(struct exit_args *ctx)
 {
@@ -320,6 +319,7 @@ int mount_exit(struct exit_args *ctx)
 	long ret = ctx->ret;
 	if (ret != 0)
 	{
+		// mount调用失败，不做处理
 		return 0;
 	}
 	
