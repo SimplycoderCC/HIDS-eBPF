@@ -1,4 +1,4 @@
 build
 examples/c/build
 examples/c/.xmake
-examples/hids/.output*
+examples/hids/.output/*
