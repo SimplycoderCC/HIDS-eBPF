@@ -12,7 +12,7 @@
 // com_funaddr.c 中的库函数
 int do_so_check(void);
 
-#define DEBUG_EN
+// #define DEBUG_EN
 #ifdef DEBUG_EN
 #define DEBUG(...) fprintf(stderr, __VA_ARGS__);
 #else
@@ -35,6 +35,8 @@ int do_so_check(void);
 #define MAX_PROC_PIDNS 64
 
 struct bpf_map * syscall_addrs_u;
+struct bpf_map * judge_map_u;
+struct bpf_map * pid_conid_map_u;
 
 unsigned long _stext,_etext;
 unsigned long host_pidns;
@@ -47,6 +49,7 @@ static char *sensitive_mount_pre[] = {"cgroup","/dev/sd","/etc","/root",
 static int Count_sensitive_mount_all = 1;
 static char *sensitive_mount_all[] = {"/proc"};
 
+//----------------------------------------- Open event -------------------------------------------------
 static int Count_sensitive_file_c = 2;
 static char *sensitive_file_c[] = {"shadow","crontab","sshd_config"};
 
@@ -251,9 +254,9 @@ static void get_proc_pid(const char* buf, char* pid){
 	}
 }
 
-/// 根据PID对应的进程是否运行在容器中
+/// 根据PID对应的进程是否运行在容器中 0:不运行于容器中 1：运行于容器中
 static int judge_run_in_docker(int pid, unsigned long pid_ns){
-	// 进程PID-ns与主机侧相同，肯定运行在容器中
+	// 进程PID-ns与主机侧相同，不运行在容器中
 	if(pid_ns == host_pidns){
 		return 0;
 	}
@@ -265,7 +268,7 @@ static int judge_run_in_docker(int pid, unsigned long pid_ns){
 	int ret = sprintf(pid_s, "%d", pid);
 	if(ret < 0){
 		DEBUG("sprintf pid:%d to string fail\n",pid);
-		fprintf(stderr, "sprintf pid:%d to string fail\n",pid);
+		// fprintf(stderr, "sprintf pid:%d to string fail\n",pid);
 		return 0;
 	}
 	path = strcat(path, pid_s);
@@ -273,27 +276,31 @@ static int judge_run_in_docker(int pid, unsigned long pid_ns){
 	// DEBUG("Cgroup path : %s \n",path);
 	FILE *cgroup_file = fopen(path, "r");
 	if( cgroup_file == NULL ){
-		DEBUG("Open %s fail\n",path);
-		fprintf(stderr, "Open %s fail\n",path);
-		return 0;
+		DEBUG("[judge_run_in_docker] Open %s fail , default : treat as running in docker \n",path);
+		// fprintf(stderr, "[judge_run_in_docker] Open %s fail\n",path);
+		return 1;
 	}
 	char *read                            = NULL;
 	char *start_p                         = NULL;
 	char str_line[MAX_LEN_ENTRY]  = {0}; 
+	char containerid[MAX_PATH_NAME_SIZE]  = {0};
 	read = fgets(str_line, MAX_LEN_ENTRY, cgroup_file);//从输入文件读取一行字符串
 	while(read){
 		start_p = strstr(str_line, "::/docker/");
 		if(start_p != NULL)
 		{
-			DEBUG("Found ::/docker/\n");
-			DEBUG("Line is:%s\n", str_line);
-			fprintf(stderr, "start_p %s\n",start_p);
+			// DEBUG("Found ::/docker/\n");
+			// DEBUG("Line is:%s\n", str_line);
+			// fprintf(stderr, "start_p %s\n",start_p);
 			char *containerid_s = start_p + sizeof("::/docker/") - 1;
-			fprintf(stderr, "CONTARNER-IS %s\n",containerid_s);
+			// fprintf(stderr, "CONTARNER-IS %s\n",containerid_s);
+			// 将pid - CONTARNER-ID 对应关系存入 map中
+			strcpy(containerid,containerid_s);
+			bpf_map__update_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
 			return 1;
 			
 		}
-		DEBUG("Line is:%s\n", str_line);
+		// DEBUG("Line is:%s\n", str_line);
 		read = fgets(str_line, MAX_LEN_ENTRY, cgroup_file);//从输入文件读取一行字符串
 	}
 	return 0;
@@ -357,55 +364,134 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 #endif
 
 #ifdef ONLY_MOUNT_DOCKER
-		// 简单namespace判断
-		if (host_pidns == e->pid_ns)
+		// 简单namespace判断当前进程是否运行在docker
+		// if (host_pidns == e->pid_ns)
 		// DEBUG("host_pidns: %ld, e->pid_ns: %ld \n",host_pidns,e->pid_ns);
-		// 使用 judge函数判断
+		// 使用 judge函数判断当前进程是否运行在docker  ---- 有问题的，要依据judge_map_u判断
 		// if (judge_run_in_docker(e->pid, e->pid_ns) == 0)
-		{
-			DEBUG("host MOUNT \n");
-			break;
-		}
+		// {
+		// 	DEBUG("host MOUNT \n");
+		// 	break;
+		// }else{
+			// DEBUG("check start \n");
+			int pid = e->pid;
+			unsigned long pid_ns = e->pid_ns;
+			int result = 0 ; 
+			char containerid[MAX_PATH_NAME_SIZE]  = {0};
+			// DEBUG("1 \n");
+			// bpf_map__update_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+			int ret = bpf_map__lookup_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+			// DEBUG("2 \n");
+			if (!ret)
+			{
+				// 在judge_map中查找成功
+				DEBUG("[1] bpf_map__lookup_elem process-pid:[%d], judge_run_in_docker result: %d \n",pid,result);
+			}else{
+				// 在judge_map中查找失败, TODO 则对相应PID重新判读再存入map中
+				DEBUG("[1] bpf_map__lookup_elem process-pid:[%d], on found \n",pid);
+				break ;
+			}
+			// key:PID对应的value指不为0时，表示
+			if (result){
+				// DEBUG("docker MOUNT \n");
 #endif
-		// pre fit 前缀匹配
-		for (int i = 0; i < Count_sensitive_mount_pre; i++)
-		{
-			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
-			if (strncmp(e->mount_dev,sensitive_mount_pre[i], strlen(sensitive_mount_pre[i])) == 0)
-			{	
-				fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  Container-id:%s mount dev:%s dir:%s\n",
-				ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename,e->mount_dev,e->mount_dir);
-				print_flag = false;
+				for (int i = 0; i < Count_sensitive_mount_pre; i++)
+				{
+					// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+					if (strncmp(e->mount_dev,sensitive_mount_pre[i], strlen(sensitive_mount_pre[i])) == 0)
+					{	
+						fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  Container-id:%s mount dev:%s dir:%s\n",
+						ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename,e->mount_dev,e->mount_dir);
+						// char containerid[MAX_PATH_NAME_SIZE]  = {0};
+						ret = bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+						if (!ret)
+							fprintf(stderr, /*printf(*/"container is: %s \n",
+							containerid);
+						print_flag = false;
+					}
+				}
+				// all fit 完全匹配
+				for (int i = 0; i < Count_sensitive_mount_all; i++)
+				{
+					// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+					if (strcmp(e->mount_dev,sensitive_mount_all[i]) == 0)
+					{	
+						fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld   Container-id:%s mount dev:%s dir:%s\n",
+						ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename, e->mount_dev,e->mount_dir);
+						// char containerid[MAX_PATH_NAME_SIZE]  = {0};
+						ret = bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+						if (!ret)
+							fprintf(stderr, /*printf(*/"container is: %s \n",
+							containerid);
+						print_flag = false;
+					}
+				}
+#ifdef ONLY_MOUNT_DOCKER
 			}
-		}
-		// all fit 完全匹配
-		for (int i = 0; i < Count_sensitive_mount_all; i++)
-		{
-			// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
-			if (strcmp(e->mount_dev,sensitive_mount_all[i]) == 0)
-			{	
-				fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld   Container-id:%s mount dev:%s dir:%s\n",
-				ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename, e->mount_dev,e->mount_dir);
-				print_flag = false;
-			}
-		}
+		// }
+#endif
+		// // pre fit 前缀匹配
+		// for (int i = 0; i < Count_sensitive_mount_pre; i++)
+		// {
+		// 	// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+		// 	if (strncmp(e->mount_dev,sensitive_mount_pre[i], strlen(sensitive_mount_pre[i])) == 0)
+		// 	{	
+		// 		fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  Container-id:%s mount dev:%s dir:%s\n",
+		// 		ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename,e->mount_dev,e->mount_dir);
+		// 		print_flag = false;
+		// 	}
+		// }
+		// // all fit 完全匹配
+		// for (int i = 0; i < Count_sensitive_mount_all; i++)
+		// {
+		// 	// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
+		// 	if (strcmp(e->mount_dev,sensitive_mount_all[i]) == 0)
+		// 	{	
+		// 		fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld   Container-id:%s mount dev:%s dir:%s\n",
+		// 		ts, "[Sensitive directory mount]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename, e->mount_dev,e->mount_dir);
+		// 		print_flag = false;
+		// 	}
+		// }
 		break;
 	}
 	case OPEN_FILE:
 	{
-		if (host_pidns != e->pid_ns)
+		int pid = e->pid;
+		unsigned long pid_ns = e->pid_ns;
+		int result = 0 ; 
+		char containerid[MAX_PATH_NAME_SIZE]  = {0};
+		// DEBUG("1 \n");
+		// bpf_map__update_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+		int ret = bpf_map__lookup_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+		// DEBUG("2 \n");
+		if (!ret)
 		{
+			// 在judge_map中查找成功
+			// DEBUG("[1] bpf_map__lookup_elem process-pid:[%d], judge_run_in_docker result: %d \n",pid,result);
+		}else{
+			// 在judge_map中查找失败, TODO 则对相应PID重新判读再存入map中
+			// DEBUG("[1] bpf_map__lookup_elem process-pid:[%d], on found \n",pid);
+			break ;
+		}
+		// key:PID对应的value指不为0时，表示
+		if (result){
+			// DEBUG("docker OPEN \n");
 			for (int i = 0; i < Count_sensitive_file_c; i++)
 			{
 				// DEBUG("str: %s  | len:%ld \n",sensitive_mount_pre[i],strlen(sensitive_mount_pre[i]));
 				if ( strstr(e->filename,sensitive_file_c[i]) )
 				{	
-					fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  Container file escape attack : %s \n",
-					ts, "[File open]", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
+					fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s,Container file escape attack : %s \n",
+					ts, "[File open]", e->comm, e->pid, e->ppid, e->pid_ns, e->utsnodename,e->filename);
+					// char containerid[MAX_PATH_NAME_SIZE]  = {0};
+					ret = bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+					if (!ret)
+						fprintf(stderr, /*printf(*/"container is: %s \n",
+						containerid);
 					print_flag = false;
 				}
 			}
-		}
+		}	
 		// printf("%-8s %-20s %-20s %-7d %-7d %-10ld  sensitive file open:%s \n",
 		// 			ts, "FILE-OPEN", e->comm, e->pid, e->ppid, e->pid_ns,e->filename);
 		// 			print_flag = false;	
@@ -532,6 +618,23 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 	}
 	case EXEC :
 	{
+		// 在execve时,进行容器判读并存入Map中
+		int pid = e->pid;
+		unsigned long pid_ns = e->pid_ns;
+		int result = 0;
+		char containerid[MAX_PATH_NAME_SIZE]  = {0};
+		if(judge_run_in_docker(pid, pid_ns)){
+			result = 1;
+			bpf_map__update_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+			// bpf_map__lookup_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+			// DEBUG("[0] bpf_map__update_elem process-pid:[%d], judge_run_in_docker result: %d \n",pid,result);
+		}else{
+			result = 0;
+			bpf_map__update_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+			// bpf_map__lookup_elem(judge_map_u, &pid, sizeof(pid), &result, sizeof(result), BPF_ANY);
+			// DEBUG("[0] bpf_map__update_elem process-pid:[%d], judge_run_in_docker result: %d \n",pid,result);
+		}
+
 		// 容器权限检测
 		// printf("cap_effective[0]:%x  e->cap_effective[1]:%x \n",e->cap_effective[0],e->cap_effective[1]);
 		// printf("cap_effective[0]:%x  e->cap_effective[1]:%lx \n",e->cap_effective[0],((unsigned long)e->cap_effective[1])<<32);
@@ -541,6 +644,10 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// printf("  ---  cap_effective:%lx  ---  \n",cap);
 			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The privileged container start \n",
 					ts, "[Container start]", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+			int ret = bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+			if (!ret)
+				fprintf(stderr, /*printf(*/"container is: %s \n",
+				containerid);
 			print_flag = false;
 			break ;
 		}
@@ -551,12 +658,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// printf("cap_effective:%lx ---",cap);
 			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  container-id: %s, cap_effective:%x%x , The container starts with all the capabilities set too large \n",
 					ts, "[Container start]", e->comm, e->pid, e->ppid, e->pid_ns,e->utsnodename, e->cap_effective[1], e->cap_effective[0]);
+			int ret = bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+			if (!ret)
+				fprintf(stderr, /*printf(*/"container is: %s \n",
+				containerid);
 			print_flag = false;
 			break ;
 		}
-		
-		// TODO 进行容器判读并存入Map中
-
 		// if (host_pidns == e->pid_ns)
 		// {
 		// 	break;
@@ -622,7 +730,11 @@ int main(int argc, char **argv)
 	
 	read_pidns();
 
+	// 存储 map指针
 	syscall_addrs_u = skel->maps.syscall_addrs;
+	judge_map_u = skel->maps.judge_map;
+	pid_conid_map_u = skel->maps.pid_conid_map;
+
 	//get sys_call_table addr
 	// system("cat /proc/kallsyms | grep -w sys_call_table | awk '{print $1}'");
 	systable_p = obtain_syscall_table_by_proc();

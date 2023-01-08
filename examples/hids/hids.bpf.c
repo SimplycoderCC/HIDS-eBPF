@@ -9,7 +9,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define MAX_PERCPU_BUFSIZE              (1 << 15) // set by the kernel as an upper bound
 #define MAX_STRING_SIZE                 4096      // same as PATH_MAX
 
-#define DEBUG_EN
+// #define DEBUG_EN
 #ifdef DEBUG_EN
 #define DEBUG(...) bpf_printk(__VA_ARGS__);
 #else
@@ -186,6 +186,20 @@ struct {
 } open_map SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 32 * 1024);
+	__type(key, u32);
+	__type(value, u32); 
+} judge_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 32 * 1024);
+	__type(key, u32);
+	__type(value, filename_t); 
+} pid_conid_map SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
 	__uint(max_entries, 256 * 1024); 
 } rb SEC(".maps");
@@ -354,6 +368,9 @@ int mount_exit(struct exit_args *ctx)
 	// cpy_str(mount_pkg->dev,e->mount_dev);
 	// cpy_ustr(mount_pkg->dir,e->mount_dir);
 	DEBUG("[mount_exit]  e->mount_dev %s  e->mount_dir %s\n",e->mount_dev, e->mount_dir);
+	// uts node name
+	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
+	// DEBUG("[mount_exit]  e->utsnodename %s \n",e->utsnodename);
 	// 无file name
 
 	/* successfully submit it to user-space for post-processing */
@@ -432,10 +449,11 @@ int open_exit(struct exit_args *ctx)
 	pid_t pid;
 	
 	long ret = ctx->ret;
-	if (ret == -1)
+	long fd = ret > 0 ? ret : -1;
+	if (fd == -1)
 	{
 		return 0;
-	}
+	} 
 	
 	// DEBUG("[open_exit] ret :%ld ....................\n",ret);
 	pid = bpf_get_current_pid_tgid() >> 32;
@@ -450,6 +468,12 @@ int open_exit(struct exit_args *ctx)
 		// DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
 	}
 
+	// if (fd == -1)
+	// {
+	// 	DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
+	// 	return 0;
+	// }
+	// DEBUG("[open_exit]  filename: %s   fd :%ld \n",open_pkg->filename,fd);
 	/* 保存事件结构体  reserve sample from BPF ringbuf */
 	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
 	if (!e)
@@ -485,12 +509,13 @@ int openat_exit(struct exit_args *ctx)
 	pid_t pid;
 	
 	long ret = ctx->ret;
-	if (ret == -1)
+	long fd = ret > 0 ? ret : -1;
+	if (fd == -1)
 	{
 		return 0;
 	}
 	
-	// DEBUG("[open_exit] ret :%ld ....................\n",ret);
+	// DEBUG("[openat_exit] ret :%ld ....................\n",ret);
 	pid = bpf_get_current_pid_tgid() >> 32;
 	task = (struct task_struct *)bpf_get_current_task();
 
@@ -500,9 +525,14 @@ int openat_exit(struct exit_args *ctx)
 		DEBUG("BPF map key:open_map  nofind !\n");
 		return 0;
 	}else{
-		// DEBUG("[open_exit]  filename: %s \n",open_pkg->filename);
+		// DEBUG("[openat_exit]  filename: %s \n",open_pkg->filename);
 	}
-
+	// if (fd == -1)
+	// {
+	// 	DEBUG("[openat_exit]  filename: %s \n",open_pkg->filename);
+	// 	return 0;
+	// }
+	// DEBUG("[openat_exit]  filename: %s   fd :%ld \n",open_pkg->filename,fd);
 	/* 保存事件结构体  reserve sample from BPF ringbuf */
 	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
 	if (!e)

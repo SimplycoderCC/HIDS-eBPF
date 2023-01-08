@@ -3,6 +3,7 @@
         "sstream": "c",
         "atomic": "c",
         "*.tcc": "c",
-        "fstream": "c"
+        "fstream": "c",
+        "functional": "c"
     }
 }
