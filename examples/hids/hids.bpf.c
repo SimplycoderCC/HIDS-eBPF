@@ -9,7 +9,10 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 #define MAX_PERCPU_BUFSIZE              (1 << 15) // set by the kernel as an upper bound
 #define MAX_STRING_SIZE                 4096      // same as PATH_MAX
 
-// #define DEBUG_EN
+#define INSN_INIT_OR_KPROBE 			1
+#define HOOK_CHECK_FINISH 				2
+
+#define DEBUG_EN
 #ifdef DEBUG_EN
 #define DEBUG(...) bpf_printk(__VA_ARGS__);
 #else
@@ -33,6 +36,7 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
     })
 
 static char syscalltable[MAX_KSYM_NAME_SIZE]= "sys_call_table";
+static char host_pid_s[MAX_KSYM_NAME_SIZE]= "host_pid";
 
 //---------------------------- help func -------------------
 
@@ -200,11 +204,25 @@ struct {
 } pid_conid_map SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 8 * 1024);
+	__type(key, u32);
+	__type(value, u32); 
+} khook_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 8 * 1024);
+	__type(key, u32);
+	__type(value, u32); 
+} kprobe_map SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
 	__uint(max_entries, 256 * 1024); 
 } rb SEC(".maps");
 
-// ----------------------- probe --------------------------------
+// ----------------------- kernel hook probe --------------------------------
 
 // SEC("tp/syscalls/sys_enter_write")
 SEC("tp/syscalls/sys_exit_finit_module")  // ＜（＾－＾）＞
@@ -600,14 +618,14 @@ int execve_enter(struct trace_event_execve* execve_ctx)
 	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
     // file name
 	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(execve_ctx->filename)); 
-	DEBUG("[exec_enter]  e->filename %s \n",e->filename);
+	// DEBUG("[exec_enter]  e->filename %s \n",e->filename);
 	// uts node name
 	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
-	DEBUG("[exec_enter]  e->utsnodename %s \n",e->utsnodename);
+	// DEBUG("[exec_enter]  e->utsnodename %s \n",e->utsnodename);
 	// cap_effective
 	e->cap_effective[0] = BPF_CORE_READ(task,real_cred,cap_effective.cap[0]);
 	e->cap_effective[1] = BPF_CORE_READ(task,real_cred,cap_effective.cap[1]);
-	DEBUG("[exec_enter]  e->cap_effective[0]:%d e->cap_effective[1]:%d \n",e->cap_effective[0], e->cap_effective[1]);
+	// DEBUG("[exec_enter]  e->cap_effective[0]:%d e->cap_effective[1]:%d \n",e->cap_effective[0], e->cap_effective[1]);
 	// 无mount file path
 
 	/* successfully submit it to user-space for post-processing */
@@ -656,15 +674,185 @@ int execveat_enter(struct trace_event_execveat* execveat_ctx)
 	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
     // file name
 	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(execveat_ctx->filename)); 
-	DEBUG("[execveat_enter]  e->filename %s \n",e->filename);
+	// DEBUG("[execveat_enter]  e->filename %s \n",e->filename);
 	// uts node name
 	bpf_probe_read_str(e->utsnodename, sizeof(e->utsnodename), (BPF_CORE_READ(task,nsproxy,uts_ns,name.nodename))); 
-	DEBUG("[execveat_enter]  e->utsnodename %s \n",e->utsnodename);
+	// DEBUG("[execveat_enter]  e->utsnodename %s \n",e->utsnodename);
 	// cap_effective
 	e->cap_effective[0] = BPF_CORE_READ(task,real_cred,cap_effective.cap[0]);
 	e->cap_effective[1] = BPF_CORE_READ(task,real_cred,cap_effective.cap[1]);
-	DEBUG("[execveat_enter]  e->cap_effective[0]:%d e->cap_effective[1]:%d \n",e->cap_effective[0], e->cap_effective[1]);
+	// DEBUG("[execveat_enter]  e->cap_effective[0]:%d e->cap_effective[1]:%d \n",e->cap_effective[0], e->cap_effective[1]);
 	// 无mount file path
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+//  ------------------------------ kprobe kfun hook ------------------
+
+// ---------------------------------  kprobe use check ---------------------
+// kprobe:kprobe_lookup_name
+// kprobe:arm_kprobe, 		
+// kprobe:__disarm_kprobe_ftrace 	// don't work
+// SEC("kretprobe/arm_kprobe")	
+SEC("kretprobe/kprobe_lookup_name")	
+int kprobe_lookup_name_ret(){
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+	// DEBUG("[openat_enter]  filename %s   \n",open_pkg.filename);
+	
+	unsigned long *host_pid_p ;
+	host_pid_p = (unsigned long *)bpf_map_lookup_elem(&ksymbols_map,&host_pid_s);
+	if(!host_pid_p){
+		return 0;
+	}
+
+	// 不跟踪host ebpf程序自身对kprobe的调用
+	if((unsigned long)pid == *host_pid_p){
+		return 0;
+	}
+	DEBUG("[kprobe] kretprobe/kprobe_lookup_name, check point 1 \n");
+	int kprobe = INSN_INIT_OR_KPROBE;
+	bpf_map_update_elem(&kprobe_map, &pid ,&kprobe, BPF_ANY);
+	// bpf_map_update_elem(&mount_dir_map, &pid ,&dir, BPF_ANY);
+	// bpf_map_update_elem(&mount_dir_map,);
+	return 0;
+}
+
+// SEC("kprobe/__disarm_kprobe_ftrace")	// failed to create kprobe
+SEC("kretprobe/arm_kprobe") 
+int arm_kprobe_ret(){
+	struct event *e;
+	struct task_struct *task;
+	pid_t pid;
+	unsigned long *host_pid_p ;
+	int *is_kprobe ;
+
+	pid = bpf_get_current_pid_tgid() >> 32;
+	task = (struct task_struct *)bpf_get_current_task();
+
+	is_kprobe = (int *)bpf_map_lookup_elem(&kprobe_map, &pid);
+	if (!is_kprobe)
+	{
+		// DEBUG("BPF map key:open_map  nofind !\n");
+		return 0;
+	}
+	// 未满足 Kprobe 敏感序列, 直接返回
+	if(*is_kprobe != INSN_INIT_OR_KPROBE){
+		return 0;
+	}
+
+	// 不跟踪host ebpf程序自身对kprobe的调用
+	host_pid_p = (unsigned long *)bpf_map_lookup_elem(&ksymbols_map,&host_pid_s);
+	if(!host_pid_p){
+		return 0;
+	}
+	if((unsigned long)pid == *host_pid_p){
+		return 0;
+	}
+	DEBUG("[kprobe] kretprobe/arm_kprobe, check point 2 \n");
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = KPROBE;
+	e->pid = pid;
+    // 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    // comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	//pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+    // 无 file name
+	// 无需 uts node name
+	// 无 mount file path
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+// ---------------------------------  khook check ------------------------------------------
+// kprobe:insn_init, 		获取某个地址的指令 -> 返回结构体
+// kprobe:insn_get_length 	获取这种指令的长度 -> 参数为结构体
+SEC("kretprobe/insn_init")	
+int insn_init_ret(){
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+	int *is_insn_init ;
+	// 不跟踪host ebpf程序自身对kprobe的调用
+	unsigned long *host_pid_p ;
+	host_pid_p = (unsigned long *)bpf_map_lookup_elem(&ksymbols_map,&host_pid_s);
+	if(!host_pid_p){
+		return 0;
+	}
+	if((unsigned long)pid == *host_pid_p){
+		return 0;
+	}
+
+	// 对同一PID仅进行一次异常指令操作序列检测
+	is_insn_init = (int *)bpf_map_lookup_elem(&khook_map, &pid);
+	if (!is_insn_init)
+	{
+		// 仅 key对应的value为空时, 进行一次更新
+		DEBUG("[KHOOK] kretprobe/insn_init, check point 1 \n");
+		int insn_init = INSN_INIT_OR_KPROBE;
+		bpf_map_update_elem(&khook_map, &pid ,&insn_init, BPF_ANY);
+	}
+	
+	return 0;
+}
+
+SEC("kretprobe/insn_get_length")	
+int insn_get_length_ret(){
+	struct event *e;
+	struct task_struct *task;
+	pid_t pid;
+	int *is_insn_init ;
+	pid = bpf_get_current_pid_tgid() >> 32;
+	task = (struct task_struct *)bpf_get_current_task();
+
+	// 不跟踪host ebpf程序自身对kprobe的调用
+	unsigned long *host_pid_p ;
+	host_pid_p = (unsigned long *)bpf_map_lookup_elem(&ksymbols_map,&host_pid_s);
+	if(!host_pid_p){
+		return 0;
+	}
+	if((unsigned long)pid == *host_pid_p){
+		return 0;
+	}
+
+	// 未满足KHOOK敏感序列, 直接返回
+	is_insn_init = (int *)bpf_map_lookup_elem(&khook_map, &pid);
+	if (!is_insn_init)
+	{
+		// DEBUG("BPF map key:open_map  nofind !\n");
+		return 0;
+	}
+	if(*is_insn_init != INSN_INIT_OR_KPROBE){
+		return 0;
+	}
+
+	// 满足一次KHOOK序列检测标记当前PID，之后不再进行重复检测
+	int insn_init = HOOK_CHECK_FINISH;
+	bpf_map_update_elem(&khook_map, &pid ,&insn_init, BPF_ANY);
+	DEBUG("[KHOOK] kretprobe/insn_get_length, check point 2 \n");
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = KHOOK;
+	e->pid = pid;
+    // 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    // comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	//pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+    // 无 file name
+	// 无需 uts node name
+	// 无 mount file path
 
 	/* successfully submit it to user-space for post-processing */
 	bpf_ringbuf_submit(e, 0);

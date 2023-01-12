@@ -12,6 +12,8 @@
 #define MOUNT 3
 #define OPEN_FILE 4
 #define EXEC 5
+#define KHOOK 6
+#define KPROBE 7
 
 struct event {
     unsigned int event_type;

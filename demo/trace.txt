@@ -1,0 +1,257 @@
+ -------------------------  this to check module 首次使用 kprobe 框架
+insmod 271209 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe   
+insmod 271209 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+
+
+================= brokepkg ================= 使用kprobe框架查找函数地址 再使用ftrace进行函数hook
+COMM TID 
+insmod 266019 called register_kprobe* 
+insmod 266019 called arch_check_ftrace_location 
+insmod 266019 called arch_prepare_kprobe_ftrace 
+insmod 266019 called register_kprobe* 
+insmod 266019 called register_kprobe* 
+insmod 266019 called arch_check_ftrace_location 
+insmod 266019 called arch_prepare_kprobe_ftrace 
+insmod 266019 called register_kprobe* 
+insmod 266019 called register_kprobe* 
+insmod 266019 called arch_check_ftrace_location 
+insmod 266019 called arch_prepare_kprobe_ftrace 
+insmod 266019 called register_kprobe* 
+
+=========== Diamorphine ======================== 使用kprobe框架查找函数 的 lookup sym 函数
+insmod 266347 called register_kprobe* 
+insmod 266347 called arch_check_ftrace_location 
+insmod 266347 called arch_prepare_kprobe_ftrace
+
+=========== Diamorphine all kprobe fun ======================== 使用kprobe框架查找函数 的 lookup sym 函数
+insmod 268470 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 268470 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268470 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 268470 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 268470 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 268470 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 268470 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe  
+insmod 268470 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268470 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268470 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268470 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 268470 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+insmod 268470 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 268470 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 268470 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback 
+
+================= brokepkg all kprobe fun ================= 使用kprobe框架查找函数地址 再使用ftrace进行函数hook
+insmod 268018 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 268018 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268018 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 268018 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 268018 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 268018 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 268018 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe  
+insmod 268018 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268018 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268018 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 268018 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 268018 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+                                                                                                 --------------- 以上与  Diamorphine all kprobe fun 完全相同
+insmod 268018 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268018 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268018 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268018 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe 
+ 
+insmod 268018 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268018 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 268018 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 268018 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 268018 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 268018 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268018 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268018 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 268018 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 268018 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268018 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268018 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268018 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 268018 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268018 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 268018 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 268018 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 268018 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 268018 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268018 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268018 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 268018 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 268018 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 268018 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 268018 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 268018 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 268018 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+
+insmod 268018 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback 
+
+
+
+
+
+================= brokepkg only kallsyms_lookup_name: sys_getdents64, not ftrace hook ================= 使用kprobe框架查找函数地址 再使用ftrace进行函数hook
+insmod 271209 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 271209 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 271209 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 271209 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 271209 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 271209 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 271209 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe  
+insmod 271209 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 271209 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 271209 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 271209 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 271209 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+insmod 271209 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 271209 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 271209 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback 
+
+
+
+
+================= brokepkg kallsyms_lookup_name && ftrace hook : sys_getdents64, 和上面没有任何区别  ================= 使用kprobe框架查找函数地址 再使用ftrace进行函数hook
+insmod 279847 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 279847 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 279847 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 279847 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 279847 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 279847 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 279847 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe  
+insmod 279847 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 279847 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 279847 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 279847 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 279847 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+insmod 279847 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 279847 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 279847 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callbac
+
+
+
+
+-------------------------- 三个syscall 完全一样啊 -------------------------------
+insmod 283039 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 283039 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 283039 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 283039 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 283039 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 283039 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 283039 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe  
+insmod 283039 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 283039 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 283039 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 283039 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 283039 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+insmod 283039 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 283039 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 283039 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 283039 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 283039 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 283039 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 283039 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 283039 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 283039 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 283039 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 283039 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 283039 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 283039 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 283039 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 283039 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 283039 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 283039 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 283039 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 283039 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback 
+
+
+
+
+
+
+
+
+
+insmod 285417 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 285417 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 285417 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 285417 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 285417 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 285417 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 285417 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe  
+insmod 285417 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 285417 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 285417 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 285417 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 285417 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace  
+insmod 285417 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 285417 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 285417 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 285417 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 285417 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 285417 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 285417 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 285417 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 285417 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 285417 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 285417 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 285417 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 285417 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 285417 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 285417 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 285417 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 285417 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 285417 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 285417 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback
+
+
+
+
+
+-------------------------- 三个kprobe 和上面也一样 因为只调用了kprobe查找符号  -------------------------------
+insmod 288016 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 288016 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 288016 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 288016 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 288016 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 288016 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 288016 called  - probe: kprobe:arm_kprobe,   function: arm_kprobe   -------------------
+insmod 288016 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 288016 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 288016 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 288016 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 288016 called  - probe: kprobe:__disarm_kprobe_ftrace,   function: __disarm_kprobe_ftrace   ---------
+insmod 288016 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 288016 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 288016 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 288016 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 288016 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 288016 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 288016 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 288016 called  - probe: kprobe:register_kprobe,   function: register_kprobe  
+insmod 288016 called  - probe: kprobe:kprobe_lookup_name,   function: kprobe_lookup_name  
+insmod 288016 called  - probe: kprobe:within_kprobe_blacklist,   function: within_kprobe_blacklist  
+insmod 288016 called  - probe: kprobe:arch_within_kprobe_blacklist,   function: arch_within_kprobe_blacklist  
+insmod 288016 called  - probe: kprobe:arch_prepare_kprobe_ftrace,   function: arch_prepare_kprobe_ftrace  
+insmod 288016 called  - probe: kprobe:unregister_kprobe,   function: unregister_kprobe  
+insmod 288016 called  - probe: kprobe:__unregister_kprobe_top,   function: __unregister_kprobe_top  
+insmod 288016 called  - probe: kprobe:__disable_kprobe,   function: __disable_kprobe  
+insmod 288016 called  - probe: kprobe:__get_valid_kprobe,   function: __get_valid_kprobe  
+insmod 288016 called  - probe: kprobe:__unregister_kprobe_bottom,   function: __unregister_kprobe_bottom  
+insmod 288016 called  - probe: kprobe:arch_remove_kprobe,   function: arch_remove_kprobe  
+insmod 288016 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback
+
+
+-------------------------------     一个也不hook，不调用brokepkg kallsyms_lookup_name  也会有两次module_callback   --------------------------------
+insmod 296691 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  
+insmod 296691 called  - probe: kprobe:kprobes_module_callback,   function: kprobes_module_callback  

@@ -337,14 +337,29 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 				{
 					DEBUG("syscalladdr out of range \n");
 					fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld syscall[%d]: be changed. May have been attacked by kernel rootkit !\n",
-					ts, "SYSCALL_TABLE_HOOK", e->comm, e->pid, e->ppid, e->pid_ns, idx);
+						ts, "SYSCALL_TABLE_HOOK", e->comm, e->pid, e->ppid, e->pid_ns, idx);
 					print_flag = false;
 					// e->event_type = SYSCALL_TABLE_HOOK;
 				}
 				// bpf_map__update_elem(skel->maps.ksymbols_map,&syscalltable,sizeof(syscalltable),systable_p,sizeof(*systable_p),BPF_ANY);
 			}
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  todo + module name? && + insert module entry 以获得一次insermodule事件的完整流程及事件信息 !\n",
+				ts, "INSERT_MODULE", e->comm, e->pid, e->ppid, e->pid_ns);
 		}
-		/* code */
+		break;
+	case KHOOK:
+		{
+			// using Kernel instruction operation function
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  using Kernel instruction operation function!\n",
+					ts, "KHOOK", e->comm, e->pid, e->ppid, e->pid_ns);
+		}
+		break;
+	case KPROBE:
+		{
+			// using Kernel KPROBE operation function
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  using Kernel KPROBE framework!\n",
+					ts, "KPROBE", e->comm, e->pid, e->ppid, e->pid_ns);
+		} 
 		break;
 	case MOUNT:
 	{
@@ -707,7 +722,10 @@ int main(int argc, char **argv)
 	int err;
 	unsigned long * systable_p;
 	// unsigned int syscalltable= 0;
-	char syscalltable[MAX_KSYM_NAME_SIZE]= "sys_call_table";
+	char syscalltable[MAX_KSYM_NAME_SIZE]	= "sys_call_table";
+	char host_pid_s[MAX_KSYM_NAME_SIZE]		= "host_pid";
+	unsigned long host_pid = (unsigned long)getpid();
+	// pid_t getpid(void);
 
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	/* Set up libbpf errors and debug info callback */
@@ -746,6 +764,9 @@ int main(int argc, char **argv)
 	// ring_buffer__new
 	// bpf_map_update_elem(, &pid, &ts, BPF_ANY);
 	
+	// 保存 host_pid 到 ksymbols_map 中
+	bpf_map__update_elem(skel->maps.ksymbols_map,&host_pid_s,sizeof(host_pid_s),&host_pid,sizeof(host_pid),BPF_ANY);
+
 	/* Attach tracepoints */
 	err = hids_bpf__attach(skel);
 	if (err) {
