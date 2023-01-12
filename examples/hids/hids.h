@@ -14,6 +14,7 @@
 #define EXEC 5
 #define KHOOK 6
 #define KPROBE 7
+#define MODULE_LOAD 8
 
 struct event {
     unsigned int event_type;

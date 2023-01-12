@@ -37,6 +37,7 @@ int do_so_check(void);
 struct bpf_map * syscall_addrs_u;
 struct bpf_map * judge_map_u;
 struct bpf_map * pid_conid_map_u;
+struct bpf_map * lkm_map_u;
 
 unsigned long _stext,_etext;
 unsigned long host_pidns;
@@ -320,6 +321,17 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	switch (e->event_type)
 	{
+	case MODULE_LOAD:
+		{
+			int pid = e->pid;
+			char module_name[MAX_KSYM_NAME_SIZE]  = {0};
+			bpf_map__lookup_elem(lkm_map_u, &pid, sizeof(pid), module_name, MAX_KSYM_NAME_SIZE, BPF_ANY);
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  load module, module-name is %s !\n",
+				ts, "MODULE_LOAD", e->comm, e->pid, e->ppid, e->pid_ns, module_name);
+			// bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+			print_flag = false;
+		}
+		break;
 	case INSERT_MODULE:
 		{
 			// fprintf(stderr, "do check \n");
@@ -338,13 +350,18 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 					DEBUG("syscalladdr out of range \n");
 					fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld syscall[%d]: be changed. May have been attacked by kernel rootkit !\n",
 						ts, "SYSCALL_TABLE_HOOK", e->comm, e->pid, e->ppid, e->pid_ns, idx);
-					print_flag = false;
+					
 					// e->event_type = SYSCALL_TABLE_HOOK;
 				}
 				// bpf_map__update_elem(skel->maps.ksymbols_map,&syscalltable,sizeof(syscalltable),systable_p,sizeof(*systable_p),BPF_ANY);
 			}
-			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  todo + module name? && + insert module entry 以获得一次insermodule事件的完整流程及事件信息 !\n",
-				ts, "INSERT_MODULE", e->comm, e->pid, e->ppid, e->pid_ns);
+			// print module name
+			int pid = e->pid;
+			char module_name[MAX_KSYM_NAME_SIZE]  = {0};
+			bpf_map__lookup_elem(lkm_map_u, &pid, sizeof(pid), module_name, MAX_KSYM_NAME_SIZE, BPF_ANY);
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  insert module finished, module-name is %s ! \n",
+				ts, "INSERT_MODULE_FINISH", e->comm, e->pid, e->ppid, e->pid_ns, module_name);
+			print_flag = false;
 		}
 		break;
 	case KHOOK:
@@ -352,6 +369,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// using Kernel instruction operation function
 			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  using Kernel instruction operation function!\n",
 					ts, "KHOOK", e->comm, e->pid, e->ppid, e->pid_ns);
+			print_flag = false;
 		}
 		break;
 	case KPROBE:
@@ -359,6 +377,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			// using Kernel KPROBE operation function
 			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  using Kernel KPROBE framework!\n",
 					ts, "KPROBE", e->comm, e->pid, e->ppid, e->pid_ns);
+			print_flag = false;
 		} 
 		break;
 	case MOUNT:
@@ -752,6 +771,7 @@ int main(int argc, char **argv)
 	syscall_addrs_u = skel->maps.syscall_addrs;
 	judge_map_u = skel->maps.judge_map;
 	pid_conid_map_u = skel->maps.pid_conid_map;
+	lkm_map_u = skel->maps.lkm_map;
 
 	//get sys_call_table addr
 	// system("cat /proc/kallsyms | grep -w sys_call_table | awk '{print $1}'");

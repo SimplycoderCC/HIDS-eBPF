@@ -101,6 +101,12 @@ struct exit_args {
 	long ret;
 };
 
+struct trace_event_module_load {
+	struct trace_entry ent;
+	unsigned int taints;
+    int data_loc_name;
+};
+    
 struct trace_event_mount {
 	struct trace_entry ent;
 	int __syscall_nr;
@@ -218,11 +224,59 @@ struct {
 } kprobe_map SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, 4096);
+	__type(key, u32);
+	__type(value, ksym_name_t); 
+} lkm_map SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
 	__uint(max_entries, 256 * 1024); 
 } rb SEC(".maps");
 
 // ----------------------- kernel hook probe --------------------------------
+
+SEC("tp/module/module_load")
+// int module_load() //struct trace_event_module_load *module_load_ctx
+int module_load(struct trace_event_module_load *module_load_ctx)
+{
+	char str[MAX_KSYM_NAME_SIZE] = {0} ;
+	struct event *e;
+	pid_t pid;
+	struct task_struct *task;
+	pid = bpf_get_current_pid_tgid() >> 32;
+	task = (struct task_struct *)bpf_get_current_task();
+  	unsigned long offset = (unsigned long)(module_load_ctx->data_loc_name & 0xFFFF);
+  	unsigned int length = (unsigned long)(module_load_ctx->data_loc_name >> 16);
+  	unsigned long base = (unsigned long)module_load_ctx;
+	bpf_probe_read_str(str, MAX_KSYM_NAME_SIZE, (void *)(base+offset));  
+	DEBUG("[data_loc_name] module_name:%s! \n",str);
+	DEBUG("module_load !\n");
+	// DEBUG("module_load, module name is: %s !\n", args->name);
+	// lkm_map
+	bpf_map_update_elem(&lkm_map, &pid, str, BPF_ANY);
+
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+
+	/* fill out the sample with data */
+    e->event_type = MODULE_LOAD;
+	e->pid = pid;
+    // 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    // comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	//pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+    // 无file name
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
 
 // SEC("tp/syscalls/sys_enter_write")
 SEC("tp/syscalls/sys_exit_finit_module")  // ＜（＾－＾）＞
@@ -788,6 +842,12 @@ int insn_init_ret(){
 		return 0;
 	}
 	if((unsigned long)pid == *host_pid_p){
+		return 0;
+	}
+
+	// 若没有load—module ,不进行序列检测
+	char *lkm_name = bpf_map_lookup_elem(&lkm_map, &pid);
+	if (!lkm_name){
 		return 0;
 	}
 
