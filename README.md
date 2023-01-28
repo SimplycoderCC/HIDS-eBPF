@@ -33,9 +33,7 @@ kill -63 0          # The module starts invisible, to remove you need to make it
 rmmod diamorphine   # Then remove the module(as root)
 ```
 
-
-
-
+![](./images/detected-diamophine.png)    
 
 ## brokepkg Rootkit
 ```shell
@@ -52,7 +50,7 @@ kill -31 0  # Remove brokepkg invisibility to uninstall him
 sudo rmmod brokepkg  # Then remove the module
 ```
 
-
+![](./images/detected-brokepkg.png)    
 
 
 # todo
