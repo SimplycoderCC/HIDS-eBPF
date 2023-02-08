@@ -22,6 +22,7 @@ sudo ./hids
 ## Diamophine Rootkit
 ```shell
 # https://github.com/m0nad/Diamorphine
+# 直接修改系统调用表，实现对系统调用的劫持
 
 # Install
 cd Diamorphine          # Enter the folder
@@ -38,6 +39,7 @@ rmmod diamorphine   # Then remove the module(as root)
 ## brokepkg Rootkit
 ```shell
 # https://github.com/R3tr074/brokepkg
+# 基于ftrace framework实现对系统调用及内核函数的劫持
 
 # Install
 cd brokepkg             # Enter the folder
