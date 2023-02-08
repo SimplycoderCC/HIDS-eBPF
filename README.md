@@ -2,17 +2,18 @@
 
 ```shell
 # source code
-./examples/hids/hids.bpf.c  
-./examples/hids/hids.c  
-./examples/hids/hids.h 
-./examples/hids/com_funaddr.c 
+./hids/hids.bpf.c  
+./hids/hids.c  
+./hids/hids.h 
+./hids/com_funaddr.c 
 ```
 
 # usage
 
 ```shell
-cd ./examples/hids/ 
-make hids
+cd hids 
+# Compile
+make hids   # 或者 make all  
 # 运行hids
 sudo ./hids
 ```
@@ -34,7 +35,7 @@ kill -63 0          # The module starts invisible, to remove you need to make it
 rmmod diamorphine   # Then remove the module(as root)
 ```
 
-![](./images/detected-diamophine.png)    
+![](./images/detected-dia.png)    
 
 ## brokepkg Rootkit
 ```shell
@@ -52,7 +53,7 @@ kill -31 0  # Remove brokepkg invisibility to uninstall him
 sudo rmmod brokepkg  # Then remove the module
 ```
 
-![](./images/detected-brokepkg.png)    
+![](./images/detected-broke.png)    
 
 
 # todo
