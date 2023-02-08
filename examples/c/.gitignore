@@ -1,9 +1,0 @@
-/.output
-/bootstrap
-/minimal
-/minimal_legacy
-/uprobe
-/kprobe
-/fentry
-/profile
-/usdt
