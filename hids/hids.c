@@ -7,6 +7,7 @@
 #include <sys/resource.h>
 #include <bpf/libbpf.h>
 #include "hids.h"
+#include "config.h"
 #include "hids.skel.h"
 
 // com_funaddr.c 中的库函数
@@ -361,6 +362,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			bpf_map__lookup_elem(lkm_map_u, &pid, sizeof(pid), module_name, MAX_KSYM_NAME_SIZE, BPF_ANY);
 			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  insert module finished, module-name is %s ! \n",
 				ts, "INSERT_MODULE_FINISH", e->comm, e->pid, e->ppid, e->pid_ns, module_name);
+			for (int i = 0; i < LKM_ROOTKIT_CNT; i++)
+			{
+				// fprintf(stderr, /*printf(*/"rootkit list %s ! \n",lkm_sensitive_names[i]);
+				if (strncmp(module_name,lkm_sensitive_names[i], MAX_KSYM_NAME_SIZE) == 0){
+					fprintf(stderr, /*printf(*/"Discover LKM-RootKits!!!  rootkit name is %s ! \n",module_name);
+				}
+			}
 			print_flag = false;
 		}
 		break;
