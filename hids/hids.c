@@ -23,9 +23,6 @@ int do_so_check(void);
 // 输出所有mount //是否只检测不同命名空间的mount
 #define ONLY_MOUNT_DOCKER
 
-// 是否进行 preload 检测, 在mount的时候触发。  todo: 更好地触发形式？  
-// #define PRE_LOAD
-
 // 打印所有事件
 // #define NORMAL
 
@@ -388,23 +385,29 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			print_flag = false;
 		} 
 		break;
+	case KILL:
+		{
+			int sig = e->sig;
+			// printf("kill event %d \n",sig);
+			if(sig == USER_ROOTKIT){
+				// printf("++++++++++++++ kill sig: 44  ++++++++++++ \n");
+				do_so_check();   //TODO
+				if(getenv("LD_PRELOAD")) {
+					printf("... LD_PRELOAD is visible in the local environment variables.. little warning\n");
+					printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
+				"TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
+				}
+				if(access("/etc/ld.so.preload", F_OK) != -1) {
+					printf("... /etc/ld.so.preload DOES definitely exist.. little warning\n");
+					printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
+				"TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
+				}
+			}
+		}
+		break;
 	case MOUNT:
 	{
 		DEBUG("mount start \n");
-#ifdef PRE_LOAD
-		do_so_check();   //TODO
-		// if(getenv("LD_PRELOAD")) {
-		// 	printf("... LD_PRELOAD is visible in the local environment variables.. little warning\n");
-		// 	printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
-	    //    "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
-		// }
-    	// if(access("/etc/ld.so.preload", F_OK) != -1) {
-		// 	printf("... /etc/ld.so.preload DOES definitely exist.. little warning\n");
-		// 	printf("%-8s %-18s %-12s %-9s %-9s %-12s %s\n",
-	    //    "TIME", "EVENT", "COMM", "PID", "PPID", "PID_NS" ,"DESCRIBE");
-		// }
-#endif
-
 #ifdef ONLY_MOUNT_DOCKER
 		// 简单namespace判断当前进程是否运行在docker
 		// if (host_pidns == e->pid_ns)

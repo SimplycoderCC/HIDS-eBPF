@@ -30,7 +30,7 @@ int dladdr_check(void)
     }
 
  
-    // printf("[+] beginning dlsym/dladdr check.\n");
+    printf("[+] beginning dlsym/dladdr check.\n");
 
 
     while((symbol = symbols[i++]))
@@ -55,7 +55,7 @@ int dladdr_check(void)
     }
 
     dlclose(dls_handle);
-    // printf("\n[+] dlsym/dladdr check finished.\n");
+    printf("\n[+] dlsym/dladdr check finished.\n");
 
     return hooked_funcs;
 }
@@ -64,7 +64,7 @@ void dlinfo_check(void)
 {
     struct link_map *lm;
     dlinfo(dlopen(NULL, RTLD_LAZY), 2, &lm);
-    // printf("[+] beginning dlinfo check.\n");
+    printf("[+] beginning dlinfo check.\n");
 
 
     while(lm != NULL)
@@ -73,22 +73,24 @@ void dlinfo_check(void)
         lm = lm->l_next;
     }
 
-    // printf("[+] dlinfo check finished.\n");
+    printf("[+] dlinfo check finished.\n");
 
 }
 
 int do_so_check(void)
 {
+    printf("===========================================user mod rootkit check bdginning =======================================================\n");
     if(getenv("LD_PRELOAD")) printf("... LD_PRELOAD is visible in the local environment variables.. little warning\n");
     if(access("/etc/ld.so.preload", F_OK) != -1) printf("... /etc/ld.so.preload DOES definitely exist.. little warning\n");
-    // printf("[+] finished basic checks\n\n");
+    printf("[+] finished basic checks\n\n");
 
     dlinfo_check();
     //  printf("\n");
 
     int hooked_funcs = dladdr_check();
     if(hooked_funcs > 0) printf("[!] the dladdr check revealed that there are %d possibly hooked functions. YOUR MALWARE SUUUUCKS.\n", hooked_funcs);
-    // if(hooked_funcs == 0) printf("[+] no modifications to any libc functions were found. no LD_PRELOAD malware loaded, or your malware is decent.\n");
+    if(hooked_funcs == 0) printf("[+] no modifications to any libc functions were found. no LD_PRELOAD malware loaded, or your malware is decent.\n");
 
+    printf("===========================================user mod rootkit check finished =========================================================\n");
     return 0;
 }

@@ -152,6 +152,13 @@ struct trace_event_execveat {
 	int flags;   
 };
 
+struct trace_event_kill {
+	struct trace_entry ent;
+	int __syscall_nr;
+	long pid;
+	long sig;
+};
+
 typedef struct ksym_name {
     char str[MAX_KSYM_NAME_SIZE];
 } ksym_name_t;
@@ -912,6 +919,42 @@ int insn_get_length_ret(){
 	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
     // 无 file name
 	// 无需 uts node name
+	// 无 mount file path
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+	return 0;
+}
+
+//  ------------------------------ get kill event ------------------
+
+SEC("tp/syscalls/sys_enter_kill")
+int kill_enter(struct trace_event_kill* kill_ctx)
+{
+	struct event *e;
+	struct task_struct *task;
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+
+	task = (struct task_struct *)bpf_get_current_task();
+
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = KILL;
+	e->pid = pid;
+    // 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+    // comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	// pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+	// sig 
+	e->sig = kill_ctx->sig;
+    // no file name
+	// no uts node name
+	// no cap_effective
 	// 无 mount file path
 
 	/* successfully submit it to user-space for post-processing */
