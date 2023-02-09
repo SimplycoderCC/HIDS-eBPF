@@ -11,16 +11,20 @@
 # usage
 
 ```shell
+# Enter the folder
 cd hids 
 # Compile
 make hids   # 或者 make all  
 # 运行hids
 sudo ./hids
+
+# clear
+make clear  # 或者 make clean
 ```
 
 # Rootkit-Examples
 
-## Diamophine Rootkit
+## Diamophine Rootkit 
 ```shell
 # https://github.com/m0nad/Diamorphine
 # 直接修改系统调用表，实现对系统调用的劫持
@@ -55,6 +59,15 @@ sudo rmmod brokepkg  # Then remove the module
 
 ![](./images/detected-broke.png)    
 
+#  Check preload(User-mode Rootkit)
+
+``` shell
+# 发送44号信号到任意PID触发动态链接注入检测
+kill -44 2100
+kill -44 $(ANY PID)
+```
+
+![](./images/user-rootkit.png)  
 
 # todo
 Complete documentation... 
