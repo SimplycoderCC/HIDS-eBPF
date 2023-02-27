@@ -434,7 +434,7 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 			}else{
 				// 在judge_map中查找失败, TODO 则对相应PID重新判读再存入map中
 				DEBUG("[1] bpf_map__lookup_elem process-pid:[%d], on found \n",pid);
-				break ;
+				if (host_pidns != e->pid_ns) result=1;
 			}
 			// key:PID对应的value指不为0时，表示
 			if (result){

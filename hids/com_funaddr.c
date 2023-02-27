@@ -55,7 +55,7 @@ int dladdr_check(void)
     }
 
     dlclose(dls_handle);
-    printf("\n[+] dlsym/dladdr check finished.\n");
+    printf("[+] dlsym/dladdr check finished.\n");
 
     return hooked_funcs;
 }
