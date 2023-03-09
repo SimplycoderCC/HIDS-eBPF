@@ -16,6 +16,7 @@
 #define KPROBE 7
 #define MODULE_LOAD 8
 #define KILL 9
+#define COMMIT_CREDS 10
 
 struct event {
     unsigned int event_type;
@@ -24,6 +25,8 @@ struct event {
 	unsigned long pid_ns;
 	int cap_effective[2];
 	int sig;
+	unsigned int new_uid;
+	unsigned int old_uid;
 	char comm[TASK_COMM_LEN];
 	char utsnodename[MAX_KSYM_NAME_SIZE];
 	char filename[MAX_FILENAME_LEN];

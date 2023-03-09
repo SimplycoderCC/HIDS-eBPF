@@ -319,6 +319,14 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	switch (e->event_type)
 	{
+	// 进程变化
+	// case COMMIT_CREDS:
+	// {
+	// 	fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  privilege escalation, %u to %u!\n",
+	// 			ts, "COMMIT_CREDS", e->comm, e->pid, e->ppid, e->pid_ns, e->old_uid, e->new_uid);
+	// 		// bpf_map__lookup_elem(pid_conid_map_u, &pid, sizeof(pid), containerid, MAX_PATH_NAME_SIZE, BPF_ANY);
+	// 	break;
+	// }
 	case MODULE_LOAD:
 		{
 			int pid = e->pid;
