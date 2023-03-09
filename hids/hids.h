@@ -17,6 +17,7 @@
 #define MODULE_LOAD 8
 #define KILL 9
 #define COMMIT_CREDS 10
+#define SYS_ENTER_MEMFD_CREATE 11
 
 struct event {
     unsigned int event_type;

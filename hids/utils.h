@@ -159,6 +159,13 @@ struct trace_event_kill {
 	long sig;
 };
 
+struct trace_event_memfd_create {
+	struct trace_entry ent;
+	int __syscall_nr;
+	char * uname;     
+	unsigned long flags;     
+};
+
 typedef struct ksym_name {
     char str[MAX_KSYM_NAME_SIZE];
 } ksym_name_t;

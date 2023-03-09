@@ -2,7 +2,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
-#include "hids.h"
+// #include "hids.h"
 #include "utils.h"
 
 // ----------------------- kernel hook probe --------------------------------
@@ -790,3 +790,54 @@ int kill_enter(struct trace_event_kill* kill_ctx)
 //     }
 // 	return 0;
 // }
+
+
+// ---------------------------------      无文件攻击   ------------------------
+
+// name: sys_enter_memfd_create
+// ID: 626
+// format:
+//         field:unsigned short common_type;       offset:0;       size:2; signed:0;
+//         field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+//         field:unsigned char common_preempt_count;       offset:3;       size:1; signed:0;
+//         field:int common_pid;   offset:4;       size:4; signed:1;
+
+//         field:int __syscall_nr; offset:8;       size:4; signed:1;
+//         field:const char * uname;       offset:16;      size:8; signed:0;
+//         field:unsigned int flags;       offset:24;      size:8; signed:0;
+
+// print fmt: "uname: 0x%08lx, flags: 0x%08lx", ((unsigned long)(REC->uname)), ((unsigned long)(REC->flags))
+
+// https://xeldax.top/article/linux_no_file_elf_mem_execute
+SEC("tracepoint/syscalls/sys_enter_memfd_create")
+int sys_enter_memfd_create(struct trace_event_memfd_create *ctx)
+{
+	struct event *e;
+	struct task_struct *task;
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+
+	task = (struct task_struct *)bpf_get_current_task();
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = SYS_ENTER_MEMFD_CREATE;
+	e->pid = pid;
+	// 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+	// comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	// pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+	// no sig 
+	// file name
+	bpf_probe_read_str(e->filename, sizeof(e->filename), (void *)(ctx->uname)); 
+	// no uts node name
+	// no cap_effective
+	// 无 mount file path
+
+	/* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+    return 0;
+}

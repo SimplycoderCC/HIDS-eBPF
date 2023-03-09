@@ -319,6 +319,13 @@ static int handle_event(void *ctx, void *data, size_t data_sz)
 
 	switch (e->event_type)
 	{
+		// https://xeldax.top/article/linux_no_file_elf_mem_execute
+	case SYS_ENTER_MEMFD_CREATE:
+		{
+			fprintf(stderr, /*printf(*/"%-8s %-20s %-20s %-7d %-7d %-10ld  ELF no file attacked ! uname:%s \n",
+			ts, "SYS_ENTER_MEMFD_CREATE", e->comm, e->pid, e->ppid, e->pid_ns, e->filename);
+			break;
+		}
 	// 进程变化
 	// case COMMIT_CREDS:
 	// {
