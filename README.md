@@ -30,15 +30,15 @@ Intrusion Detection System based on eBPF
 
 # Documents
 
-#### [文档：判断进程是否运行在容器中](./docs/区分容器进程.md)
+#### [文档：判断进程是否运行在容器中](./doc/区分容器进程.md)
 
-#### [文档：Rootkit检测原理](./docs/Rootkit检测.md)
+#### [文档：Rootkit检测原理](./doc/Rootkit检测.md)
 
-#### [项目中期文档](./docs/中期报告-面向云原生的内核威胁检测系统的设计与实现.pdf)
+#### [项目中期文档](./doc/中期报告-面向云原生的内核威胁检测系统的设计与实现.pdf)
 
-#### [项目中期slides](./docs/中期答辩PPT.pdf)
+#### [项目中期slides](./doc/中期答辩PPT.pdf)
 
-#### [项目开题slides](./docs/开题答辩PPT.pdf)
+#### [项目开题slides](./doc/开题答辩PPT.pdf)
 
 # Branches
 
