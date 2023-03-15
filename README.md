@@ -40,6 +40,8 @@ Intrusion Detection System based on eBPF
 
 #### [项目开题slides](./doc/开题答辩PPT.pdf)
 
+#### [内核信息提取hook点的研究](https://github.com/haozhuoD/bpftrace-hook-demo)
+
 # Branches
 
 * `main`               ------主分支，仅实现检查功能
@@ -115,5 +117,43 @@ kill -44 $(ANY PID)
 
 TODO：截图、完善文档
 
+# Hook points
+
+> 项目目前支持 `18` 种 Hook，足以实现本项目所需功能。这些hook点的选取主要基于本人的实践，存在优化空间
+
+<details><summary> 项目使用的 eBPF Hook point 详情 </summary>
+<p>
+
+| Hook                                       | Status & Description                     |
+| :----------------------------------------- | :------------------------------------    |
+| tracepoint/module/module_load              | ON & 提取*.ko文件相关信息                                      |
+| tracepoint/syscalls/sys_exit_finit_module | ON & 触发系统调用表检查                                       |
+| tracepoint/syscalls/sys_enter_mount       | ON                                     |
+| tracepoint/syscalls/sys_exit_mount        | ON                                       |
+| tracepoint/syscalls/sys_enter_open        | ON                                       |
+| tracepoint/syscalls/sys_exit_open         | ON                                    |
+| tracepoint/syscalls/sys_enter_openat      | ON                                     |
+| tracepoint/syscalls/sys_exit_openat       | ON                                     |
+| tracepoint/syscalls/sys_enter_execve      | ON                                       |
+| tracepoint/syscalls/sys_enter_execveat    | ON                                     |
+| tracepoint/syscalls/sys_enter_kill        | ON & 基于信号系统实现功能分发                                   |
+| tracepoint/syscalls/sys_enter_memfd_create| ON & 无文件攻击相关                                    |
+| kprobe/kprobe_lookup_name                 | ON & kprobe framework相关函数                                    |
+| kprobe/arm_kprobe                         | ON & kprobe framework相关函数                                   |
+| kprobe/insn_init                          | ON & 篡改内存代码行为相关函数                                   |
+| kprobe/insn_get_length                    | ON & 篡改内存代码行为相关函数                           |
+| lsm/cred_prepare                          | OFF(only ON in lsm branch) & 基于lsm阻断insmod                                    |
+| lsm/kernel_read_file                      | OFF(only ON in lsm branch) & 基于lsm阻断无文件加载攻击                                  |
+
+</p></details>
+
 # todo
+
+#### todolist
+
+* [ ] 检测中断向量表idt_table 0X80号软中断系统调用服务表项的修改。和系统调用表检查类似，检查idt_table[0X80]的地址值是否变化或者超出范围
+* [ ] 容器逃逸相关检测。示例截图、完善原理文档
+* [ ] Nofile attack 无文件攻击文档工作。示例截图、完善原理文档
+* [ ] 完善文件的fop检查，相关内容bpftrace-hook-demo仓库kern_hook_demo中的security_file_permission
+
 Complete documentation... 
