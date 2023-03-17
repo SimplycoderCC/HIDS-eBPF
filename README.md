@@ -42,6 +42,13 @@ Intrusion Detection System based on eBPF
 
 #### [内核信息提取hook点的研究](https://github.com/haozhuoD/bpftrace-hook-demo)
 
+#### Other
+
+[容器加固学习文档](./doc/容器加固.md)
+
+[docker容器运行时安全早期学习文档](./doc/docker容器运行时安全.md)
+
+
 # Branches
 
 * `main`               ------主分支，仅实现检查功能
