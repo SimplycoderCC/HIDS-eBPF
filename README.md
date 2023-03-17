@@ -117,6 +117,10 @@ kill -44 $(ANY PID)
 
 TODO：截图、完善文档
 
+[无文件攻击demo](./no_file_attack/no_file_attack.py)
+
+[学习资料：linux_no_file_elf_mem_execute](https://xeldax.top/article/linux_no_file_elf_mem_execute)
+
 # Hook points
 
 > 项目目前支持 `18` 种 Hook，足以实现本项目所需功能。这些hook点的选取主要基于本人的实践，存在优化空间
