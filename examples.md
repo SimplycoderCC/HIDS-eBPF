@@ -106,6 +106,29 @@ sudo rmmod brokepkg  # Then remove the module
 
 ![](./images/detected-broke.png)    
 
+### reveng_rtkit
+
+```shell
+# Rootkit使用说明参见：https://github.com/reveng007/reveng_rtkit
+# 检测结果如下
+dhz@ubuntu:~/workspace/HIDS-eBPF/hids$ sudo ./hids 
+[sudo] password for dhz: 
+=================================================
+TIME     EVENT              COMM         PID       PPID      PID_NS       DESCRIBE
+15:10:17 MODULE_LOAD          insmod               34667   34663   4026531836  load module, module-name is reveng_rtkit !
+15:10:17 KHOOK                insmod               34667   34663   4026531836  using Kernel instruction operation function!
+15:10:17 KPROBE               insmod               34667   34663   4026531836  using Kernel KPROBE framework!
+15:10:17 SYSCALL_TABLE_HOOK   insmod               34667   34663   4026531836 syscall[0]: be changed. May have been attacked by kernel rootkit !
+15:10:17 SYSCALL_TABLE_HOOK   insmod               34667   34663   4026531836 syscall[1]: be changed. May have been attacked by kernel rootkit !
+......
+15:10:17 SYSCALL_TABLE_HOOK   insmod               34667   34663   4026531836 syscall[334]: be changed. May have been attacked by kernel rootkit !
+15:10:17 INSERT_MODULE_FINISH insmod               34667   34663   4026531836  insert module finished, module-name is reveng_rtkit ! 
+Discover LKM-RootKits!!!  rootkit name is reveng_rtkit ! 
+```
+
+
+
+
 ##  Check preload(User-mode Rootkit)
 
 ``` shell
