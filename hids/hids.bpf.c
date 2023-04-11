@@ -841,3 +841,112 @@ int sys_enter_memfd_create(struct trace_event_memfd_create *ctx)
 	bpf_ringbuf_submit(e, 0);
     return 0;
 }
+
+// ---------------------------------   文件检查  file-fop check   ------------------------
+/* fops checks
+ * https://github.com/chriskaliX/Hades/blob/fdfbcabb68d48262b09e8bfc03bf44f2bdcf5c9a/plugins/ebpfdriver/kern/include/hades_rootkit.h
+ * In tracee, security_file_permission is hooked for file
+ * file_operations iterater detection, but in tyton(or Elkeid)
+ * only detect the /proc dir, which may be evaded. There are
+ * more than one way to hide from the proc file, set SUSPEND
+ * flag just like Reptile do can also evade detection like
+ * this one. PAY ATTENTION TO list kernel
+ * 
+ * Reference:
+ * https://vxug.fakedoma.in/papers/h2hc/H2HC%20-%20Matveychikov%20&%20f0rb1dd3%20-%20Kernel%20Rootkits.pdf
+ * tracee: https://blog.aquasec.com/detect-drovorub-kernel-rootkit-attack-tracee
+ * rootkit-demo: https://github.com/Unik-lif/rootkit-hide
+ * evasion: https://blog.csdn.net/dog250/article/details/105939822
+ *
+ * Warning: This function is under full test, PERFORMANCE IS UNKNOWN
+ * from tracee. filldir
+ * 
+ */
+#define PROC_SUPER_MAGIC       0x9fa0
+
+SEC("kprobe/security_file_permission")
+int BPF_KPROBE(kprobe_security_file_permission)
+{
+    struct file *file = (struct file *) PT_REGS_PARM1(ctx);
+    if (file == NULL)
+        return 0;
+    struct inode *f_inode = READ_KERN(file->f_inode);
+    struct super_block *i_sb = READ_KERN(f_inode->i_sb);
+    unsigned long s_magic = READ_KERN(i_sb->s_magic);
+
+    if (s_magic != PROC_SUPER_MAGIC) {
+        return 0;
+    }
+
+    struct file_operations *fops = (struct file_operations *) READ_KERN(f_inode->i_fop);
+    if (fops == NULL)
+        return 0;
+
+    // kernel version 4.10 iterate_shared
+    unsigned long iterate_shared_addr = (unsigned long) READ_KERN(fops->iterate_shared);
+    unsigned long iterate_addr = (unsigned long) READ_KERN(fops->iterate);
+    
+    if (iterate_shared_addr == 0 && iterate_addr == 0)
+        return 0;
+    
+    // get configuration from bpf_map, if not contained, skip
+    unsigned long *_stext ;
+	_stext = (unsigned long *)bpf_map_lookup_elem(&ksymbols_map,&stext_s);
+	if(!_stext){
+		return 0;
+	}
+	unsigned long *_etext ;
+	_etext = (unsigned long *)bpf_map_lookup_elem(&ksymbols_map,&etext_s);
+	if(!_etext){
+		return 0;
+	}
+
+    // Add detections for module address
+    // In tracee, the address is checked in userspace from _stext to _etext
+    // more details about memory
+    // https://www.kernel.org/doc/Documentation/x86/x86_64/mm.txt
+    // It's ok to use the hook check for kernel text section or the module addr sec
+    // for now, we just hardcode those, for experimental
+    // 
+    // for now, we do not use MODULE_VADDR, since we need to get this address from
+    // userspace also.
+    if (iterate_shared_addr > 0) {
+        if (iterate_shared_addr >= *_stext && iterate_shared_addr <= *_etext) {
+            return 0;
+        }
+    }
+    if (iterate_addr > 0) {
+        if (iterate_addr >= *_stext && iterate_addr <= *_etext) {
+            return 0;
+        }
+    }
+
+	// fop 异常
+	struct event *e;
+	struct task_struct *task;
+	pid_t pid;
+	pid = bpf_get_current_pid_tgid() >> 32;
+
+	task = (struct task_struct *)bpf_get_current_task();
+	/* 保存事件结构体  reserve sample from BPF ringbuf */
+	e = bpf_ringbuf_reserve(&rb, sizeof(*e), 0);
+	if (!e)
+		return 0;
+	e->event_type = RKT_FOPS;
+	e->pid = pid;
+	// 父进程PID task->real_parent->tgid 
+	e->ppid = BPF_CORE_READ(task, real_parent, tgid);
+	// comm
+	bpf_get_current_comm(&e->comm, sizeof(e->comm));
+	// pid_ns
+	e->pid_ns = BPF_CORE_READ(task,nsproxy,pid_ns_for_children,ns.inum);
+	// no sig 
+	// no file name
+	// no uts node name
+	// no cap_effective
+	// 无 mount file path
+
+    /* successfully submit it to user-space for post-processing */
+	bpf_ringbuf_submit(e, 0);
+    return 0;
+}

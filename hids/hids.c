@@ -769,6 +769,8 @@ int main(int argc, char **argv)
 	// unsigned int syscalltable= 0;
 	char syscalltable[MAX_KSYM_NAME_SIZE]	= "sys_call_table";
 	char host_pid_s[MAX_KSYM_NAME_SIZE]		= "host_pid";
+	char stext_s[MAX_KSYM_NAME_SIZE]		= "_stext";
+	char etext_s[MAX_KSYM_NAME_SIZE]		= "_etext";
 	unsigned long host_pid = (unsigned long)getpid();
 	// pid_t getpid(void);
 
@@ -812,6 +814,8 @@ int main(int argc, char **argv)
 	
 	// 保存 host_pid 到 ksymbols_map 中
 	bpf_map__update_elem(skel->maps.ksymbols_map,&host_pid_s,sizeof(host_pid_s),&host_pid,sizeof(host_pid),BPF_ANY);
+	bpf_map__update_elem(skel->maps.ksymbols_map,&stext_s,sizeof(stext_s),&_stext,sizeof(_stext),BPF_ANY);
+	bpf_map__update_elem(skel->maps.ksymbols_map,&etext_s,sizeof(etext_s),&_etext,sizeof(_etext),BPF_ANY);
 
 	/* Attach tracepoints */
 	err = hids_bpf__attach(skel);

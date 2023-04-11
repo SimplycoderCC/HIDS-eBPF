@@ -18,6 +18,7 @@
 #define KILL 9
 #define COMMIT_CREDS 10
 #define SYS_ENTER_MEMFD_CREATE 11
+#define RKT_FOPS 12
 
 struct event {
     unsigned int event_type;

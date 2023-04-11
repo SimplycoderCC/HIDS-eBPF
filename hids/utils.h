@@ -37,6 +37,8 @@ char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 static char syscalltable[MAX_KSYM_NAME_SIZE]= "sys_call_table";
 static char host_pid_s[MAX_KSYM_NAME_SIZE]= "host_pid";
+static char stext_s[MAX_KSYM_NAME_SIZE]= "_stext";
+static char etext_s[MAX_KSYM_NAME_SIZE]= "_etext";
 
 //---------------------------- help func -------------------
 
