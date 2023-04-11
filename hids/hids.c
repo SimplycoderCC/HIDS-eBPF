@@ -41,7 +41,7 @@ unsigned long _stext,_etext;
 unsigned long host_pidns;
 
 //----------------------------------------- Mount event -------------------------------------------------
-static int Count_sensitive_mount_pre = 6;
+static int Count_sensitive_mount_pre = 7;
 static char *sensitive_mount_pre[] = {"cgroup","/dev/sd","/etc","/root",
             "/var/run","/proc/sys/kernel","/etc/ssh"};
 
@@ -49,7 +49,7 @@ static int Count_sensitive_mount_all = 1;
 static char *sensitive_mount_all[] = {"/proc"};
 
 //----------------------------------------- Open event -------------------------------------------------
-static int Count_sensitive_file_c = 2;
+static int Count_sensitive_file_c = 3;
 static char *sensitive_file_c[] = {"shadow","crontab","sshd_config"};
 
 #ifdef LAZAGNE
