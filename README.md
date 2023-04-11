@@ -34,6 +34,8 @@ Intrusion Detection System based on eBPF
 
 #### [文档：Rootkit检测原理](./doc/Rootkit检测.md)
 
+#### [文档：简单的KRSI](./doc/lsm.md)
+
 #### [项目中期文档](./doc/中期报告-面向云原生的内核威胁检测系统的设计与实现.pdf)
 
 #### [项目中期slides](./doc/中期答辩PPT.pdf)
