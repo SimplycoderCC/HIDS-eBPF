@@ -1,9 +1,23 @@
-## 容器逃逸检查
+# 目录
+
+- [功能展示](#功能展示)
+    - 容器逃逸预警
+    - Rootkit检测
+    - Check preload(User-mode Rootkit)
+    - Nofile attack 无文件攻击
+    - file_operations checks
+- [内核函数级的入侵阻断](#函数级的入侵阻断)
+- [内核进程级的入侵阻断](#进程级的入侵阻断)
+    
+# 功能展示
+
+## 容器逃逸预警
 
 TODO：截图、完善文档
 
-## Rootkit-Examples
+## Rootkit检测
 
+Some Examples: Diamophine, brokepkg...
 ### Diamophine Rootkit 
 ```shell
 # https://github.com/m0nad/Diamorphine
@@ -57,13 +71,33 @@ TODO：截图、完善文档
 
 [学习资料：linux_no_file_elf_mem_execute](https://xeldax.top/article/linux_no_file_elf_mem_execute)
 
-# KRSI(基于LSM hook点实现函数级的入侵阻断)
+##  file_operations checks
+
+TODO：示例截图
+
+# 函数级的入侵阻断
+KRSI(基于LSM hook点实现函数级的入侵阻断)
 
 以Rootkit内核模块插入为例
 
+成功实现函数调用级的阻断，shell提示权限不够
 
+![](./images/KRSI-shell-output.png) 
 
-# 进程级的入侵阻断(基于bpf_send_signal()辅助函数发送信号实现)
+hids提示lsm阻断，提示插入的内核模块文件名
 
-以Rootkit内核模块插入为例
+![](./images/KRSI-hids-output.png)
+
+# 进程级的入侵阻断
+基于bpf_send_signal()辅助函数发送信号实现
+
+以Rootkit内核模块插入为例（目前阻断插桩点的选择存在问题）
+
+成功实现进程级的入侵阻断，insmod进程被kill，shell提示Terminated
+
+![](./images/send_signal-shell-output.png)
+
+hids正常提示相关信息
+
+![](./images/send_signal-hids-output.png)
 
