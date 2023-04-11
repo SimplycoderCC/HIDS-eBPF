@@ -130,7 +130,7 @@ TODO：截图、完善文档
 
 # Hook points
 
-> 项目目前支持 `18` 种 Hook，足以实现本项目所需功能。这些hook点的选取主要基于本人的实践，存在优化空间
+> 项目目前支持 `19` 种 Hook，足以实现本项目所需功能。这些hook点的选取主要基于本人的实践，存在优化空间
 
 <details><summary> 项目使用的 eBPF Hook point 详情 </summary>
 <p>
@@ -153,6 +153,7 @@ TODO：截图、完善文档
 | kprobe/arm_kprobe                         | ON & kprobe framework相关函数                                   |
 | kprobe/insn_init                          | ON & 篡改内存代码行为相关函数                                   |
 | kprobe/insn_get_length                    | ON & 篡改内存代码行为相关函数                           |
+| kprobe/security_file_permission           | ON & file_operations checks                           |
 | lsm/cred_prepare                          | OFF(only ON in lsm branch) & 基于lsm阻断insmod                                    |
 | lsm/kernel_read_file                      | OFF(only ON in lsm branch) & 基于lsm阻断无文件加载攻击                                  |
 
