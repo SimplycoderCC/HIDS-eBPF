@@ -31,6 +31,7 @@
 
 // Reference:
 // https://github.com/chriskaliX/Hades/blob/fdfbcabb68d48262b09e8bfc03bf44f2bdcf5c9a/plugins/ebpfdriver/kern/include/hades_rootkit.h
+// https://xz.aliyun.com/t/12173
 
 #define EPERM 1
 SEC("kprobe/bpf")
