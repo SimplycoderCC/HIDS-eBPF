@@ -50,6 +50,8 @@ Intrusion Detection System based on eBPF
 
 [docker容器运行时安全早期学习文档](./doc/docker容器运行时安全.md)
 
+[ebpf rootkit初步探索](./demo/ebpf-rootkit.c)
+
 
 # Branches
 
@@ -108,8 +110,8 @@ make clear  # 或者 make clean
 #### todolist
 
 * [ ] 检测中断向量表idt_table 0X80号软中断系统调用服务表项的修改。和系统调用表检查类似，检查idt_table[0X80]的地址值是否变化或者超出范围
-* [ ] 容器逃逸相关检测。示例截图、完善原理文档
-* [ ] Nofile attack 无文件攻击文档工作。示例截图、完善原理文档
+* [√] 容器逃逸相关检测。示例截图、完善原理文档
+* [√] Nofile attack 无文件攻击文档工作。示例截图、完善原理文档
 * [√] 完善文件的fop检查，相关内容bpftrace-hook-demo仓库kern_hook_demo中的security_file_permission
 * [ ] fop-check示例寻找（注意相关注释中的链接），运行结果验证
 
